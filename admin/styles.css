@@ -1,0 +1,17 @@
+.header_container {
+    background-color: lightblue;
+    width: 100%;
+    min-height: 120px;
+    display: flex;
+    align-items: flex-end;   /* vertical: bottom */
+    justify-content: flex-start; /* horizontal: left */
+    padding: 0 0 16px 20px;  /* bottom + left margin feel */
+}
+
+#welcome_header {
+    margin: 0; /* remove default h1 margin so alignment is exact */
+}
+
+main{
+    padding: 0 20px;
+}
