@@ -1,1 +1,11 @@
+* {
+    color: black;
+}
 
+.course-name {
+    color: rgb(32, 32, 186);
+}
+
+.course-name:hover {
+    text-decoration: underline;
+}
