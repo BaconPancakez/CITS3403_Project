@@ -8,5 +8,5 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
-    return '<!DOCTYPE html><html lang="en"><head><title>hello</title></head><body>hello, isit working' \
+    return '<!DOCTYPE html><html lang="en"><head><title>hello</title></head><body>hello, is it working' \
     '</body></html>'
