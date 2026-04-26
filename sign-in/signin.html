@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in to UUUA</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Space+Grotesk:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row min-vh-100">
+            <aside class="col-12 col-lg-4 border-end border-bottom bg-body-tertiary d-flex">
+                <div class="w-100 d-flex flex-column justify-content-center p-4 p-lg-5">
+                    <div class="mb-4">
+                        <span class="navbar-brand h4 mb-0">UUUA</span>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4 p-lg-5">
+                            <h1 class="h3 mb-2">Sign in</h1>
+                            <p class="text-muted mb-4">Use your UWA email to continue.</p>
+
+                            <form id="signinForm" class="auth-form" action="/login" method="post">
+                                <div class="mb-3">
+                                    <label for="signin-email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="signin-email" name="email"
+                                        placeholder="you@uwa.edu.au" autocomplete="email" data-uwa-email="true"
+                                        required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="signin-password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="signin-password" name="password"
+                                        autocomplete="current-password" required>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary w-100">Sign In</button>
+                            </form>
+
+                            <p class="mt-4 mb-0 text-muted">
+                                Don’t have an account?
+                                <a href="signup.html">Sign up</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="col-12 col-lg-8 hero-banner d-flex">
+                <div class="hero-overlay d-flex flex-column justify-content-center p-4 p-lg-5 w-100">
+                    <p class="hero-kicker mb-2">UUUA Admin</p>
+                    <h2 class="hero-title mb-3">Welcome back</h2>
+                    <p class="fs-5 mb-0">
+                        Review reports, manage copied content, and monitor inappropriate submissions from one place.
+                    </p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+</body>
+
+</html>
