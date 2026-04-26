@@ -1,4 +1,4 @@
-root {
+:root {
     --bg: #f3efe8;
     --ink: #0f172a;
     --muted: #475569;
@@ -69,7 +69,7 @@ body {
     min-height: 250px;
     background-image:
     linear-gradient(to top, rgba(8, 15, 35, 0.62), rgba(8, 15, 35, 0.2)),
-    url("https://www.rottnestisland.com/images/default-source/photos/attractions/little-salmon-bay/110708-3.jpg?sfvrsn=486d27ad_1");
+    url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
     background-size: cover;
     background-position: 100% 75%;
     display: flex;
