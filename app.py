@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, flash, redirect, url_for
 
 app = Flask(
     __name__,
     template_folder="templates",
     static_folder="static"
 )
+app.secret_key = "pKcXxKlaHtVm7u2Urhlz58SD"
 
 # To run
 # source .venv/bin/activate
@@ -21,14 +22,19 @@ def course():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        password = request.form.get("password", "")
+        print("RAW FORM DATA:", request.form)
 
-        # placeholder logic
-        flash("Login submitted.", "info")
-        return redirect(url_for("login"))
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "").strip()
 
-    return render_template("signin.html")
+        if email == "admin@uwa.edu.au" and password == "1234":
+            flash("Login successful!", "success")
+            return redirect(url_for("index"))
+        else:
+            flash("Invalid username or password.", "danger")
+            return redirect(url_for("login"))
+
+    return render_template("login.html")
 
 
 @app.route("/signup", methods=["GET", "POST"])
