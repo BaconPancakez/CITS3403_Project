@@ -5,4 +5,4 @@ default_db_path = 'sqlite:///' + os.path.join(basedir, 'uuua.db')
 
 class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('MYAPP_DATABASE_URL') or default_db_path
-    SECRET_KEY = os.environ.get('MYAPP_SECRET_KEY')
+    SECRET_KEY = os.environ.get('MYAPP_SECRET_KEY') or 'dev-key'
