@@ -27,6 +27,14 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0; /* avoid flex item collapsing to 0 width beside sidebar */
+}
+
+/* When sidebar is hidden (auth), main column must span full width */
+body.login-page .app-content,
+body.signup-page .app-content {
+    flex: 1 1 100%;
+    width: 100%;
 }
 
 .sidebar {
