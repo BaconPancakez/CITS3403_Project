@@ -42,6 +42,11 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/forgot-password")
+def forgot_password():
+    return render_template("forgot_password.html")
+
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.pop("is_authenticated", None)
