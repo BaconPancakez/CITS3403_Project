@@ -7,15 +7,41 @@ from app.models import MOCK_COURSES
 
 @app.route("/")
 def index():
+    # Always show landing page
+    return render_template("landing.html")
+
+
+@app.route("/home")
+def home():
+    if not session.get("is_authenticated"):
+        flash("Please log in to view courses.", "warning")
+        return redirect(url_for("login"))
+    
+    return render_template("home.html", courses=MOCK_COURSES)
+
+
+@app.route("/admin")
+def admin():
+    if not session.get("is_authenticated"):
+        return redirect(url_for("login"))
+
     return render_template("admin.html", courses=MOCK_COURSES)
 
 @app.route("/course")
 def course_list():
+    if not session.get("is_authenticated"):
+        flash("Please log in to view courses.", "warning")
+        return redirect(url_for("login"))
+    
     return render_template("courses.html", courses=MOCK_COURSES)
 
 
 @app.route("/course/<course_code>")
 def course_detail(course_code):
+    if not session.get("is_authenticated"):
+        flash("Please log in to view courses.", "warning")
+        return redirect(url_for("login"))
+
     course = next((item for item in MOCK_COURSES if item["code"] == course_code), None)
     if not course:
         flash("Course not found.", "warning")
@@ -34,7 +60,7 @@ def login():
         if email == "admin@uwa.edu.au" and password == "1234":
             session["is_authenticated"] = True
             flash("Login successful!", "success")
-            return redirect(url_for("index"))
+            return redirect(url_for("home"))
         else:
             flash("Invalid username or password.", "danger")
             return redirect(url_for("login"))

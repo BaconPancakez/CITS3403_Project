@@ -19,8 +19,8 @@
     <title>{% block title %}Dashboard{% endblock %}</title>
 </head>
 <body class="{% block body_class %}{% endblock %}">
-    <div class="app-shell">
-        <aside class="sidebar">
+    <div class="app-shell{% if 'landing-page' in self.body_class() %} landing-shell{% endif %}">
+        <aside class="sidebar{% if 'landing-page' in self.body_class() %} d-none{% endif %}">
             <!-- <div class="sidebar-brand">Admin</div> -->
             <nav class="sidebar-nav">
                 <a class="nav-link{% if request.endpoint == 'index' %} active{% endif %}" href="{{ url_for('index') }}">Home</a>

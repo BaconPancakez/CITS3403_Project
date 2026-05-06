@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}UWA Study Hub{% endblock %}
+
+{% block page_css %}
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" />
+{% endblock %}
+
+{% block body_class %}landing-page{% endblock %}
+
+{% block content %}
+    <section class="hero__carousel theme__impact">
+        <div class="_viewport">
+            <li id="hero-carousel-1" class="_frame">
+                <!-- Desktop image -->
+                <img 
+                    height="1046" 
+                    width="2440" 
+                    alt="UUUA Study Hub Hero" 
+                    class="_large" 
+                    src="{{ url_for('static', filename='image/web-logo.png') }}"
+                />
+                
+                <!-- Mobile image -->
+                <img 
+                    alt="UUUA Study Hub Hero Mobile" 
+                    width="1100" 
+                    height="733" 
+                    class="_small" 
+                    src="{{ url_for('static', filename='image/web-logo.png') }}"
+                />
+                
+                <!-- Blue angular landing cover -->
+                <div class="_base"></div>
+
+                <!-- Landing page hero content -->
+                <div class="_content hero-overlay">
+                    <h2>UWA Study Hub</h2>
+                    <div>
+                        <div class="ck-content">
+                            <p>Learn together, grow together</p>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-3 flex-wrap mt-4">
+                        <a href="{{ url_for('login') }}" class="btn btn-light btn-lg">
+                            Login
+                        </a>
+
+                        <a href="{{ url_for('signup') }}" class="btn btn-outline-light btn-lg">
+                            Sign Up
+                        </a>
+                    </div>
+                </div>
+            </li>
+        </div>
+    </section>
+
+    <main class="landing-main p-4">
+        <!-- Additional landing page content can go here -->
+    </main>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/style.js') }}"></script>
+{% endblock %}
