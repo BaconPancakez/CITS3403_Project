@@ -9,6 +9,8 @@ class User(db.Model,):
 	name = db.Column(db.String(120), nullable=True)
 	role = db.Column(db.String(20), nullable=True)
 
+
+# Compact set for dashboard cards (full catalogue is on /course).
 FEATURED_COURSES = [
 	{
 		"code": "CITS3403",

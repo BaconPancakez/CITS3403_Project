@@ -5,17 +5,28 @@ from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
 
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
+
+
+def _favorite_codes():
+    return set(session.get("favorite_course_codes", []))
+
+
 def _favorite_units():
     codes = _favorite_codes()
     return [u for u in UWA_UNITS if u["code"] in codes]
+
 
 @app.route("/")
 def index():
     return render_template("admin.html", courses=FEATURED_COURSES)
 
+
 @app.route("/dashboard")
 def dashboard():
+    """Course grid + sidebar; used when guests choose Home from auth pages."""
     return render_template("admin.html", courses=FEATURED_COURSES)
+
 
 @app.route("/course")
 def course_list():
