@@ -214,4 +214,7 @@ body {
     .hero-overlay {
         padding: 1rem;
     }
+    .no-sidebar .app-content {
+    width: 100%;
+}
 }
