@@ -167,7 +167,8 @@
                 <span class="page-link">Page {{ page }} / {{ total_pages }}</span>
             </li>
             <li class="page-item{% if page >= total_pages %} disabled{% endif %}">
-                {% if page < total_pages %} <a class="page-link"
+                {% if page < total_pages %} 
+                <a class="page-link"
                     href="{{ url_for('course_list', page=page + 1, q=q, school=school_filter, level_of_study=level_filter, location=location_filter) }}">
                     Next</a>
                     {% else %}
@@ -186,6 +187,7 @@
         const selects = document.querySelectorAll('.filter-select');
         const form = document.getElementById('course-search-form');
         if (!form) return;
+        if (!input && selects.length === 0) return;
 
         const favoritesSection = document.getElementById('favorite-units-section');
         const favoritesBody = document.getElementById('favorite-units-body');

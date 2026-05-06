@@ -5,12 +5,6 @@ from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
 
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
-
-
-def _favorite_codes():
-    return set(session.get("favorite_course_codes", []))
-
 
 def _favorite_units():
     codes = _favorite_codes()
@@ -19,7 +13,7 @@ def _favorite_units():
 
 @app.route("/")
 def index():
-    return render_template("admin.html", courses=FEATURED_COURSES)
+    return render_template("landing.html", courses=FEATURED_COURSES)
 
 
 @app.route("/dashboard")
@@ -141,7 +135,7 @@ def login():
         if email == "admin@uwa.edu.au" and password == "1234":
             session["is_authenticated"] = True
             flash("Login successful!", "success")
-            return redirect(url_for("index"))
+            return redirect(url_for("dashboard"))
         else:
             flash("Invalid username or password.", "danger")
             return redirect(url_for("login"))
@@ -152,7 +146,7 @@ def login():
 def logout():
     session.pop("is_authenticated", None)
     flash("Logged out.", "info")
-    return redirect(url_for("index"))
+    return redirect(url_for("dashboard"))
 
 @app.route("/forgot-password")
 def forgot_password():
