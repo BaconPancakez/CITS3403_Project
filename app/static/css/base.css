@@ -30,8 +30,7 @@ body {
     min-width: 0; /* avoid flex item collapsing to 0 width beside sidebar */
 }
 
-/* When sidebar is hidden (landing / auth), main column must span full width */
-body.landing-page .app-content,
+/* When sidebar is hidden (auth), main column must span full width */
 body.login-page .app-content,
 body.signup-page .app-content {
     flex: 1 1 100%;
@@ -113,157 +112,10 @@ body.signup-page .app-content {
     margin-top: auto;
 }
 
-/* Login / signup / landing: full-width content, no sidebar nav */
+/* Login / signup: full-width content, no sidebar nav */
 body.login-page .sidebar,
-body.signup-page .sidebar,
-body.landing-page .sidebar {
+body.signup-page .sidebar {
     display: none;
-}
-
-/* Landing (guest home) */
-.landing-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 2rem 1.25rem 3rem;
-}
-
-.landing-stack {
-    width: 100%;
-    max-width: 72rem;
-    margin: 0 auto;
-}
-
-.landing-inner {
-    width: 100%;
-    max-width: 42rem;
-    margin: 0 auto;
-    text-align: center;
-}
-
-.landing-logo {
-    width: min(92vw, 520px);
-    max-width: 100%;
-    height: auto;
-    margin: 0 auto 1.75rem;
-    display: block;
-}
-
-.landing-lede {
-    font-size: 1.0625rem;
-    line-height: 1.65;
-    color: var(--muted);
-    margin: 0 auto 2rem;
-    max-width: 38rem;
-}
-
-.landing-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    justify-content: center;
-}
-
-.landing-btn {
-    min-width: 10.5rem;
-    border-radius: 12px;
-    font-weight: 600;
-    padding: 0.65rem 1.35rem;
-}
-
-.landing-btn-primary {
-    background: #20409a;
-    border-color: #20409a;
-    color: #fff;
-}
-
-.landing-btn-primary:hover {
-    background: #172f73;
-    border-color: #172f73;
-    color: #fff;
-}
-
-.landing-btn-outline {
-    border-width: 2px;
-    border-color: #20409a;
-    color: #20409a;
-    background: transparent;
-}
-
-.landing-btn-outline:hover {
-    background: rgba(32, 64, 154, 0.08);
-    border-color: #172f73;
-    color: #172f73;
-}
-
-.landing-reviews {
-    margin-top: 2.75rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--line);
-}
-
-.landing-reviews-title {
-    font-family: "Bricolage Grotesque", system-ui, sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--ink);
-    text-align: center;
-    margin-bottom: 1.25rem;
-}
-
-.landing-review-card {
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-    text-align: left;
-}
-
-.landing-review-card .card-body {
-    padding: 1.35rem 1.25rem;
-}
-
-.landing-review-avatar {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid rgba(32, 64, 154, 0.18);
-    margin-bottom: 1rem;
-    display: block;
-}
-
-.landing-review-quote {
-    font-size: 0.9375rem;
-    line-height: 1.55;
-    color: var(--muted);
-    margin: 0 0 1rem;
-    padding: 0;
-    border: none;
-    font-style: normal;
-}
-
-.landing-review-byline {
-    margin: 0;
-}
-
-.landing-review-byline cite {
-    font-style: normal;
-}
-
-.landing-review-name {
-    display: block;
-    font-style: normal;
-    font-weight: 700;
-    color: var(--ink);
-    font-size: 0.95rem;
-}
-
-.landing-review-role {
-    display: block;
-    font-size: 0.8125rem;
-    color: var(--muted);
-    margin-top: 0.15rem;
 }
 
 .hero-banner {
@@ -370,8 +222,7 @@ body.landing-page .sidebar {
     }
 
     body.login-page .app-content,
-    body.signup-page .app-content,
-    body.landing-page .app-content {
+    body.signup-page .app-content {
         padding-bottom: 0;
     }
 

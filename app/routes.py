@@ -1,21 +1,23 @@
 # from app.models import Group
 from flask import render_template, request, redirect, url_for, flash, session
-from jinja2 import TemplateNotFound
 
 from app import app, db
 
 from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
 
 
+def _favorite_codes():
+    return set(session.get("favorite_course_codes", []))
+
+
+def _favorite_units():
+    codes = _favorite_codes()
+    return [u for u in UWA_UNITS if u["code"] in codes]
+
+
 @app.route("/")
 def index():
-    if session.get("is_authenticated"):
-        return render_template("admin.html", courses=FEATURED_COURSES)
-    try:
-        return render_template("landing.html")
-    except TemplateNotFound:
-        # e.g. clone without landing.html committed — keep site usable
-        return redirect(url_for("dashboard"))
+    return render_template("admin.html", courses=FEATURED_COURSES)
 
 
 @app.route("/dashboard")
@@ -28,23 +30,58 @@ def dashboard():
 def course_list():
     per_page = 80
     page = request.args.get("page", default=1, type=int)
-    total = len(UWA_UNITS)
+    q = request.args.get("q", default="", type=str).strip()
+    q_lower = q.lower()
+
+    if q_lower:
+        filtered_units = [
+            u
+            for u in UWA_UNITS
+            if q_lower in u["code"].lower() or q_lower in u["title"].lower()
+        ]
+    else:
+        filtered_units = UWA_UNITS
+
+    total = len(filtered_units)
     total_pages = max(1, (total + per_page - 1) // per_page)
     page = max(1, min(page, total_pages))
     start = (page - 1) * per_page
-    courses_page = UWA_UNITS[start : start + per_page]
+    courses_page = filtered_units[start : start + per_page]
     showing_from = start + 1 if total else 0
     showing_to = min(page * per_page, total)
+    favorite_codes = _favorite_codes()
     return render_template(
         "courses.html",
         courses=courses_page,
+        favorite_units=_favorite_units(),
+        favorite_codes=favorite_codes,
         page=page,
         total_pages=total_pages,
         total_units=total,
         per_page=per_page,
         showing_from=showing_from,
         showing_to=showing_to,
+        q=q,
     )
+
+
+@app.route("/course/favorite/<course_code>", methods=["POST"])
+def toggle_favorite_course(course_code):
+    code = course_code.strip().upper()
+    if code not in UWA_UNITS_BY_CODE:
+        flash("Course not found.", "warning")
+        return redirect(url_for("course_list"))
+
+    favorites = _favorite_codes()
+    if code in favorites:
+        favorites.remove(code)
+    else:
+        favorites.add(code)
+    session["favorite_course_codes"] = sorted(favorites)
+
+    page = request.form.get("page", default=1, type=int)
+    q = request.form.get("q", default="", type=str)
+    return redirect(url_for("course_list", page=page, q=q))
 
 
 @app.route("/course/<course_code>")
