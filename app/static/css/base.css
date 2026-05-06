@@ -104,6 +104,12 @@ body {
     margin-top: auto;
 }
 
+/* Login / signup: full-width content, no sidebar nav */
+body.login-page .sidebar,
+body.signup-page .sidebar {
+    display: none;
+}
+
 .hero-banner {
     min-height: 250px;
     background-image:
@@ -205,6 +211,11 @@ body {
 
     .app-content {
         padding-bottom: 130px;
+    }
+
+    body.login-page .app-content,
+    body.signup-page .app-content {
+        padding-bottom: 0;
     }
 
     .hero-banner {
