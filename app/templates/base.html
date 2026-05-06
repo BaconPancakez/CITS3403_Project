@@ -23,7 +23,7 @@
         <aside class="sidebar{% if 'landing-page' in self.body_class() %} d-none{% endif %}">
             <!-- <div class="sidebar-brand">Admin</div> -->
             <nav class="sidebar-nav">
-                <a class="nav-link{% if request.endpoint == 'index' %} active{% endif %}" href="{{ url_for('index') }}">Home</a>
+                <a class="nav-link{% if request.endpoint == 'dashboard' or (request.endpoint == 'index' and is_authenticated) %} active{% endif %}" href="{{ url_for('dashboard') }}">Home</a>
                 <a class="nav-link{% if request.endpoint in ['course_list', 'course_detail'] %} active{% endif %}" href="{{ url_for('course_list') }}">Courses</a>
                 {% if not is_authenticated %}
                     <a class="nav-link{% if request.endpoint == 'login' %} active{% endif %}" href="{{ url_for('login') }}">Login</a>
