@@ -106,6 +106,7 @@ body {
 
 /* Login / signup: full-width content, no sidebar nav */
 body.login-page .sidebar,
+body.home-page .sidebar,
 body.signup-page .sidebar {
     display: none;
 }

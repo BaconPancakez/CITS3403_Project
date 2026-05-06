@@ -7,6 +7,10 @@ from app.models import MOCK_COURSES
 
 @app.route("/")
 def index():
+    return render_template("home.html", courses=MOCK_COURSES)
+
+@app.route("/admin")
+def admin():
     return render_template("admin.html", courses=MOCK_COURSES)
 
 @app.route("/course")
