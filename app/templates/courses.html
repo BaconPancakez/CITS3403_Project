@@ -1,28 +1,259 @@
 {% extends "base.html" %}
 
 {% block title %}Courses{% endblock %}
+{% block body_class %}courses-page{% endblock %}
 
 {% block content %}
-    <header class="hero-banner border-bottom">
-        <div class="hero-overlay">
-            <h1 class="hero-title m-0">Courses</h1>
-            <p class="hero-kicker mb-3 fs-5">Browse the courses you manage</p>
-        </div>
-    </header>
+<header class="hero-banner border-bottom py-4" style="background-color: #fcfcfc;">
+    <div class="container hero-overlay">
+        <h1 class="hero-title m-0">UWA units</h1>
+    </div>
+</header>
 
-    <main class="p-3 p-lg-4">
-        <div class="row g-3">
-            {% for course in courses %}
-                <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ course.code }} {{ course.title }}</h5>
-                            <p class="card-text">{{ course.summary }}</p>
-                            <a href="{{ url_for('course_detail', course_code=course.code) }}" class="btn btn-primary">Open course</a>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
+<main class="container p-3 p-lg-4">
+    <form method="get" action="{{ url_for('course_list') }}" class="mb-4" id="course-search-form">
+        <div class="row g-2">
+            <div class="col-12 col-md-12 col-lg-4">
+                <input type="search" class="form-control" id="course-search" name="q" value="{{ q }}"
+                    placeholder="Search by code or title (e.g. CITS3403)" aria-label="Search units" />
+            </div>
+            <div class="col-12 col-sm-4 col-lg-2">
+                <select class="form-select filter-select" name="school" aria-label="Filter by School">
+                    <option value="">All Schools</option>
+                    {% for s in schools %}
+                    <option value="{{ s }}" {% if s==school_filter %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-4 col-lg-2">
+                <select class="form-select filter-select" name="level_of_study" aria-label="Filter by Level">
+                    <option value="">All Levels</option>
+                    {% for l in levels %}
+                    <option value="{{ l }}" {% if l==level_filter %}selected{% endif %}>{{ l }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-4 col-lg-2">
+                <select class="form-select filter-select" name="location" aria-label="Filter by Location">
+                    <option value="">All Locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}" {% if loc==location_filter %}selected{% endif %}>{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-2 d-flex gap-2">
+                <button class="btn btn-primary w-100" type="submit">Search</button>
+                {% if q or school_filter or level_filter or location_filter %}
+                <a class="btn btn-outline-secondary w-100" href="{{ url_for('course_list') }}">Clear</a>
+                {% endif %}
+            </div>
         </div>
-    </main>
+    </form>
+
+    <div class="mb-5" id="favorite-units-section" {% if not favorite_units %} style="display:none" {% endif %}>
+        <h5 class="mb-3 fw-bold text-muted">Favorited units</h5>
+        <div class="table-responsive shadow-sm rounded border bg-white">
+            <table class="table table-hover mb-0 align-middle">
+                <tbody id="favorite-units-body">
+                    {% for course in favorite_units %}
+                    <tr data-search="{{ (course.code ~ ' ' ~ course.title)|lower }}">
+                        <td style="width: 120px; border-right: 1px solid #f0f0f0;" class="text-center bg-light">
+                            <code class="small fw-bold fs-6 text-dark">{{ course.code }}</code>
+                        </td>
+                        <td class="py-3 px-4">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div>
+                                    <a class="text-decoration-none fw-semibold text-dark fs-5"
+                                        href="{{ url_for('course_detail', course_code=course.code) }}">{{ course.title
+                                        }}</a>
+                                    <div class="small mt-2 gap-2 d-flex flex-wrap">
+                                        {% if course.school %}<span
+                                            class="badge bg-light text-secondary border fw-normal"><i
+                                                class="bi bi-building"></i> {{ course.school }}</span>{% endif %}
+                                        {% if course.level_of_study %}<span
+                                            class="badge bg-light text-secondary border fw-normal"><i
+                                                class="bi bi-book"></i> {{ course.level_of_study }}</span>{% endif %}
+                                        {% if course.location %}<span
+                                            class="badge bg-light text-secondary border fw-normal"><i
+                                                class="bi bi-geo-alt"></i> {{ course.location }}</span>{% endif %}
+                                    </div>
+                                </div>
+                                <form method="post"
+                                    action="{{ url_for('toggle_favorite_course', course_code=course.code) }}"
+                                    class="m-0">
+                                    <input type="hidden" name="page" value="{{ page }}" />
+                                    <input type="hidden" name="q" value="{{ q }}" />
+                                    <input type="hidden" name="school" value="{{ school_filter }}" />
+                                    <input type="hidden" name="level_of_study" value="{{ level_filter }}" />
+                                    <input type="hidden" name="location" value="{{ location_filter }}" />
+                                    <button type="submit" class="favorite-star is-on" title="Unstar {{ course.code }}"
+                                        aria-label="Unstar {{ course.code }}">&#9733;</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h5 class="mb-3 fw-bold text-muted">All Units</h5>
+    <div class="table-responsive shadow-sm rounded border bg-white" id="all-units-table">
+        <table class="table table-hover mb-0 align-middle">
+            <tbody id="all-units-body">
+                {% for course in courses %}
+                <tr data-search="{{ (course.code ~ ' ' ~ course.title)|lower }}">
+                    <td style="width: 120px; border-right: 1px solid #f0f0f0;" class="text-center bg-light">
+                        <code class="small fw-bold fs-6 text-dark">{{ course.code }}</code>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <div>
+                                <a class="text-decoration-none fw-semibold text-dark fs-5"
+                                    href="{{ url_for('course_detail', course_code=course.code) }}">{{ course.title
+                                    }}</a>
+                                <div class="small mt-2 gap-2 d-flex flex-wrap">
+                                    {% if course.school %}<span
+                                        class="badge bg-light text-secondary border fw-normal"><i
+                                            class="bi bi-building"></i> {{ course.school }}</span>{% endif %}
+                                    {% if course.level_of_study %}<span
+                                        class="badge bg-light text-secondary border fw-normal"><i
+                                            class="bi bi-book"></i> {{ course.level_of_study }}</span>{% endif %}
+                                    {% if course.location %}<span
+                                        class="badge bg-light text-secondary border fw-normal"><i
+                                            class="bi bi-geo-alt"></i> {{ course.location }}</span>{% endif %}
+                                </div>
+                            </div>
+                            <form method="post"
+                                action="{{ url_for('toggle_favorite_course', course_code=course.code) }}" class="m-0">
+                                <input type="hidden" name="page" value="{{ page }}" />
+                                <input type="hidden" name="q" value="{{ q }}" />
+                                <input type="hidden" name="school" value="{{ school_filter }}" />
+                                <input type="hidden" name="level_of_study" value="{{ level_filter }}" />
+                                <input type="hidden" name="location" value="{{ location_filter }}" />
+
+                                {% if course.code in favorite_codes %}
+                                <button type="submit" class="favorite-star is-on" title="Unstar {{ course.code }}"
+                                    aria-label="Unstar {{ course.code }}">&#9733;</button>
+                                {% else %}
+                                <button type="submit" class="favorite-star text-muted" title="Star {{ course.code }}"
+                                    aria-label="Star {{ course.code }}">&#9734;</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="mt-4 d-flex flex-wrap justify-content-between align-items-center gap-2" aria-label="Unit list pages"
+        id="course-pagination">
+        <p class="text-muted small mb-0" id="course-showing">
+            Showing {{ showing_from }}–{{ showing_to }} of {{ total_units }}
+        </p>
+        <ul class="pagination mb-0 flex-wrap">
+            <li class="page-item{% if page <= 1 %} disabled{% endif %}">
+                {% if page > 1 %}
+                <a class="page-link"
+                    href="{{ url_for('course_list', page=page - 1, q=q, school=school_filter, level_of_study=level_filter, location=location_filter) }}">Previous</a>
+                {% else %}
+                <span class="page-link">Previous</span>
+                {% endif %}
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">Page {{ page }} / {{ total_pages }}</span>
+            </li>
+            <li class="page-item{% if page >= total_pages %} disabled{% endif %}">
+                {% if page < total_pages %} <a class="page-link"
+                    href="{{ url_for('course_list', page=page + 1, q=q, school=school_filter, level_of_study=level_filter, location=location_filter) }}">
+                    Next</a>
+                    {% else %}
+                    <span class="page-link">Next</span>
+                    {% endif %}
+            </li>
+        </ul>
+    </nav>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (() => {
+        const input = document.getElementById('course-search');
+        const selects = document.querySelectorAll('.filter-select');
+        const form = document.getElementById('course-search-form');
+        if (!form) return;
+
+        const favoritesSection = document.getElementById('favorite-units-section');
+        const favoritesBody = document.getElementById('favorite-units-body');
+        const allBody = document.getElementById('all-units-body');
+        const pagination = document.getElementById('course-pagination');
+        const showing = document.getElementById('course-showing');
+
+        let t = null;
+        let controller = null;
+
+        const renderFrom = (doc) => {
+            const newFavoritesSection = doc.getElementById('favorite-units-section');
+            const newFavoritesBody = doc.getElementById('favorite-units-body');
+            const newAllBody = doc.getElementById('all-units-body');
+            const newPagination = doc.getElementById('course-pagination');
+            const newShowing = doc.getElementById('course-showing');
+
+            if (newFavoritesBody && favoritesBody) favoritesBody.innerHTML = newFavoritesBody.innerHTML;
+            if (newAllBody && allBody) allBody.innerHTML = newAllBody.innerHTML;
+            if (newPagination && pagination) pagination.innerHTML = newPagination.innerHTML;
+            if (newShowing && showing) showing.innerHTML = newShowing.innerHTML;
+            if (newFavoritesSection && favoritesSection) {
+                favoritesSection.style.display = newFavoritesSection.style.display;
+            }
+        };
+
+        const liveSearch = async () => {
+            const url = new URL(form.action, window.location.origin);
+            url.searchParams.set('page', '1');
+
+            const q = (input.value || '').trim();
+            if (q) url.searchParams.set('q', q);
+
+            selects.forEach(sel => {
+                if (sel.value) url.searchParams.set(sel.name, sel.value);
+            });
+
+            if (controller) controller.abort();
+            controller = new AbortController();
+
+            try {
+                const res = await fetch(url.toString(), {
+                    signal: controller.signal,
+                    headers: { 'X-Requested-With': 'fetch' },
+                });
+                if (!res.ok) return;
+                const html = await res.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                renderFrom(doc);
+                window.history.replaceState({}, '', url.pathname + url.search);
+            } catch (e) {
+                // ignore aborts / transient fetch errors
+            }
+        };
+
+        // Trigger search on typing or changing a dropdown
+        if (input) {
+            input.addEventListener('input', () => {
+                if (t) window.clearTimeout(t);
+                t = window.setTimeout(liveSearch, 180);
+            });
+        }
+        selects.forEach(sel => {
+            sel.addEventListener('change', () => {
+                if (t) window.clearTimeout(t);
+                t = window.setTimeout(liveSearch, 180);
+            });
+        });
+    })();
+</script>
 {% endblock %}

@@ -1,22 +1,120 @@
-# from app.models import Group
 from flask import render_template, request, redirect, url_for, flash, session
-
 from app import app, db
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
 
-from app.models import MOCK_COURSES
+def _favorite_codes():
+    return set(session.get("favorite_course_codes", []))
+
+def _favorite_units():
+    codes = _favorite_codes()
+    return [u for u in UWA_UNITS if u["code"] in codes]
 
 @app.route("/")
 def index():
-    return render_template("admin.html", courses=MOCK_COURSES)
+    return render_template("admin.html", courses=FEATURED_COURSES)
+
+@app.route("/dashboard")
+def dashboard():
+    return render_template("admin.html", courses=FEATURED_COURSES)
 
 @app.route("/course")
 def course_list():
-    return render_template("courses.html", courses=MOCK_COURSES)
+    per_page = 80
+    page = request.args.get("page", default=1, type=int)
+    
+    # Filter constraints
+    q = request.args.get("q", default="", type=str).strip()
+    school_filter = request.args.get("school", default="", type=str).strip()
+    level_filter = request.args.get("level_of_study", default="", type=str).strip()
+    location_filter = request.args.get("location", default="", type=str).strip()
+    
+    q_lower = q.lower()
+    favorite_codes = _favorite_codes()
 
+    filtered_units = UWA_UNITS
+
+    # Apply text search
+    if q_lower:
+        filtered_units = [
+            u for u in filtered_units
+            if q_lower in u["code"].lower() or q_lower in u["title"].lower()
+        ]
+
+    # Apply tag filters
+    if school_filter:
+        filtered_units = [u for u in filtered_units if u["school"] == school_filter]
+    if level_filter:
+        filtered_units = [u for u in filtered_units if level_filter in u["level_of_study"]]
+    if location_filter:
+        filtered_units = [u for u in filtered_units if location_filter in u["location"]]
+
+    non_favorite_units = [u for u in filtered_units if u["code"] not in favorite_codes]
+    total = len(non_favorite_units)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * per_page
+    courses_page = non_favorite_units[start : start + per_page]
+    showing_from = start + 1 if total else 0
+    showing_to = min(page * per_page, total)
+
+    # Dynamic options for dropdown filters
+    schools = sorted(list(set(u["school"] for u in UWA_UNITS if u.get("school"))))
+    levels = sorted(list(set(lvl for u in UWA_UNITS for lvl in u.get("level_of_study", "").split(" | ") if lvl)))
+    locations = sorted(list(set(loc for u in UWA_UNITS for loc in u.get("location", "").split(" | ") if loc)))
+
+    return render_template(
+        "courses.html",
+        courses=courses_page,
+        favorite_units=_favorite_units(),
+        favorite_codes=favorite_codes,
+        page=page,
+        total_pages=total_pages,
+        total_units=total,
+        per_page=per_page,
+        showing_from=showing_from,
+        showing_to=showing_to,
+        q=q,
+        school_filter=school_filter,
+        level_filter=level_filter,
+        location_filter=location_filter,
+        schools=schools,
+        levels=levels,
+        locations=locations
+    )
+
+@app.route("/course/favorite/<course_code>", methods=["POST"])
+def toggle_favorite_course(course_code):
+    code = course_code.strip().upper()
+    if code not in UWA_UNITS_BY_CODE:
+        flash("Course not found.", "warning")
+        return redirect(url_for("course_list"))
+
+    favorites = _favorite_codes()
+    if code in favorites:
+        favorites.remove(code)
+    else:
+        favorites.add(code)
+    session["favorite_course_codes"] = sorted(favorites)
+
+    # Retrieve all current query filters to preserve list state
+    page = request.form.get("page", default=1, type=int)
+    q = request.form.get("q", default="", type=str)
+    school = request.form.get("school", default="", type=str)
+    level_of_study = request.form.get("level_of_study", default="", type=str)
+    location = request.form.get("location", default="", type=str)
+    
+    return redirect(url_for(
+        "course_list", 
+        page=page, 
+        q=q, 
+        school=school, 
+        level_of_study=level_of_study, 
+        location=location
+    ))
 
 @app.route("/course/<course_code>")
 def course_detail(course_code):
-    course = next((item for item in MOCK_COURSES if item["code"] == course_code), None)
+    course = UWA_UNITS_BY_CODE.get(course_code.strip().upper())
     if not course:
         flash("Course not found.", "warning")
         return redirect(url_for("course_list"))
@@ -26,8 +124,6 @@ def course_detail(course_code):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        print("RAW FORM DATA:", request.form)
-
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "").strip()
 
@@ -41,18 +137,15 @@ def login():
 
     return render_template("login.html")
 
-
-@app.route("/forgot-password")
-def forgot_password():
-    return render_template("forgot_password.html")
-
-
 @app.route("/logout", methods=["POST"])
 def logout():
     session.pop("is_authenticated", None)
     flash("Logged out.", "info")
     return redirect(url_for("index"))
 
+@app.route("/forgot-password")
+def forgot_password():
+    return render_template("forgot_password.html")
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -70,6 +163,3 @@ def signup():
         return redirect(url_for("signup"))
 
     return render_template("signup.html")
-
-# if __name__ == "__main__":
-#     app.run(debug=True)

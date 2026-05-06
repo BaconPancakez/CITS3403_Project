@@ -1,54 +1,116 @@
 {% extends "base.html" %}
 
-{% block title %}{{ course.code }}{% endblock %}
+{% block title %}{{ course.code }} - {{ course.title }}{% endblock %}
 
 {% block content %}
-    <header class="hero-banner border-bottom">
-        <div class="hero-overlay">
-            <h1 class="hero-title m-0">{{ course.code }}</h1>
-            <p class="hero-kicker mb-3 fs-5">{{ course.title }}</p>
-        </div>
-    </header>
+<header class="hero-banner border-bottom py-5" style="background-color: #fcfcfc;">
+    <div class="container hero-overlay text-center">
+        <h1 class="hero-title fw-bold m-0 text-dark">{{ course.code }}</h1>
+        <p class="hero-kicker mb-4 fs-4 text-secondary-dark">{{ course.title }}</p>
+        {% if course.url %}
+        <a href="{{ course.url }}" target="_blank" class="btn btn-outline-primary px-4">
+            View in UWA Handbook <i class="bi bi-box-arrow-up-right ms-1"></i>
+        </a>
+        {% endif %}
+    </div>
+</header>
 
-    <main class="p-3 p-lg-4">
-        <div class="row g-3">
-            <div class="col-12 col-lg-8">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title">Week 1 Notes</h5>
-                        <p class="text-muted">Uploaded by User1</p>
+<main class="container p-3 p-lg-4">
+    <div class="row g-4">
+        <!-- Left Column: Details & Description -->
+        <div class="col-12 col-lg-8">
+            <div class="card mb-4 shadow-sm border-0 bg-white">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-dark mb-3">About this Unit</h5>
+                    <p class="card-text lh-lg text-secondary">{{ course.summary }}</p>
 
-                        <button class="btn btn-sm btn-outline-success">Upvote</button>
-                        <button class="btn btn-sm btn-outline-danger">Downvote</button>
-                        <button class="btn btn-sm btn-outline-warning">Report</button>
+                    <hr class="my-4 text-muted">
+
+                    <div class="row g-4">
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">School</h6>
+                            <div class="text-dark">{{ course.school or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Level of Study</h6>
+                            <div class="text-dark">{{ course.level_of_study or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Credit Points</h6>
+                            <div class="text-dark">{{ course.credit_points or '0' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Location</h6>
+                            <div class="text-dark">{{ course.location or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Availability</h6>
+                            <div class="text-dark">{{ course.availability or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Coordinator(s)</h6>
+                            <div class="text-dark">{{ course.coordinators or 'N/A' }}</div>
+                        </div>
+                        <div class="col-12">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Field of Education</h6>
+                            <div class="text-dark">{{ course.field_of_education or 'N/A' }}</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-lg-4">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6>Upload Notes</h6>
-                        <input type="file" class="form-control mb-2" />
-                        <button class="btn btn-primary w-100">Upload</button>
-                    </div>
-                </div>
+            <div class="card mb-3 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h5 class="card-title d-flex justify-content-between align-items-center fw-bold text-dark">
+                        Week 1 Notes
+                        <span class="badge bg-light text-secondary border fw-normal">Uploaded by User1</span>
+                    </h5>
+                    <p class="text-secondary small mt-2">An overview of introductory materials provided during week 1
+                        lectures.</p>
 
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6>Reviews</h6>
-                        <p>Four stars - Great course!</p>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <h6>Discussion</h6>
-                        <p><strong>User1:</strong> Anyone understand Week 3?</p>
-                        <input type="text" class="form-control" placeholder="Write a comment..." />
+                    <div class="d-flex gap-2 mt-4">
+                        <button class="btn btn-sm btn-outline-secondary">Upvote</button>
+                        <button class="btn btn-sm btn-outline-secondary">Downvote</button>
+                        <button class="btn btn-sm text-danger ms-auto btn-link text-decoration-none">Report</button>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
+
+        <!-- Right Column: Actions & Discussions -->
+        <div class="col-12 col-lg-4">
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-dark">Upload Notes</h6>
+                    <p class="small text-secondary mb-3">Share your materials with other students.</p>
+                    <input type="file" class="form-control mb-3" />
+                    <button class="btn btn-primary w-100">Upload Document</button>
+                </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-dark">Reviews</h6>
+                    <div class="d-flex align-items-center mb-2 mt-2">
+                        <span class="text-warning me-2">&#9733;&#9733;&#9733;&#9733;&#9734;</span>
+                        <span class="small fw-bold text-dark">4.0/5</span>
+                    </div>
+                    <p class="small fst-italic text-secondary">"Great course, highly recommend taking it in semester 1."
+                    </p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold text-dark mb-3">Discussion</h6>
+                    <div class="bg-light p-3 rounded mb-3 border">
+                        <p class="small mb-0 text-dark"><strong>User1:</strong> Anyone understand the practice questions
+                            from Week 3?</p>
+                    </div>
+                    <input type="text" class="form-control form-control-sm" placeholder="Write a comment..." />
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
 {% endblock %}
