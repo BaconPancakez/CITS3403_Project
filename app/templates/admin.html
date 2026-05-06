@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Admin dashboard{% endblock %}
+
+{% block page_css %}
+    <link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet" />
+{% endblock %}
+
+{% block body_class %}admin-dashboard{% endblock %}
+
+{% block content %}
+    <header class="hero-banner border-bottom">
+        <div class="hero-overlay">
+            <h1 id="welcome_header" class="hero-title m-0"></h1>
+            <p class="hero-kicker mb-3 fs-5">What are you up to today?</p>
+        </div>
+    </header>
+
+    <main class="p-3 p-lg-4">
+        <div class="assigned_container row g-3">
+            {% for course in courses %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <img src="data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22286%22%20height%3D%22180%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20286%20180%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_19daecb324d%20text%20%7B%20fill%3Argba(255%2C255%2C255%2C.75)%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_19daecb324d%22%3E%3Crect%20width%3D%22286%22%20height%3D%22180%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2299.421875%22%20y%3D%2296.6%22%3EImage%20cap%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E" class="card-img-top" alt="course" />
+                        <div class="card-body">
+                            <h5 class="card-title">{{ course.code }} {{ course.title }}</h5>
+                            <p class="card-text">{{ course.summary }}</p>
+                            <a href="{{ url_for('course_detail', course_code=course.code) }}" class="btn btn-primary">View course</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="complaint_container container-fluid"></div>
+    </main>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}
+
+
