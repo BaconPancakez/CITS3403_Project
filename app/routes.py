@@ -1,13 +1,10 @@
-# from app.models import Group
 from flask import render_template, request, redirect, url_for, flash, session
-
-from app import app, db
-
+from app import app
 from app.models import MOCK_COURSES
+
 
 @app.route("/")
 def index():
-    # Always show landing page
     return render_template("landing.html")
 
 
@@ -16,7 +13,6 @@ def home():
     if not session.get("is_authenticated"):
         flash("Please log in to view courses.", "warning")
         return redirect(url_for("login"))
-    
     return render_template("home.html", courses=MOCK_COURSES)
 
 
@@ -24,15 +20,14 @@ def home():
 def admin():
     if not session.get("is_authenticated"):
         return redirect(url_for("login"))
-
     return render_template("admin.html", courses=MOCK_COURSES)
+
 
 @app.route("/course")
 def course_list():
     if not session.get("is_authenticated"):
         flash("Please log in to view courses.", "warning")
         return redirect(url_for("login"))
-    
     return render_template("courses.html", courses=MOCK_COURSES)
 
 
@@ -49,11 +44,10 @@ def course_detail(course_code):
 
     return render_template("coursepg.html", course=course)
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        print("RAW FORM DATA:", request.form)
-
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "").strip()
 
@@ -88,9 +82,6 @@ def signup():
             return redirect(url_for("signup"))
 
         flash("Signup submitted.", "success")
-        return redirect(url_for("signup"))
+        return redirect(url_for("login"))
 
     return render_template("signup.html")
-
-# if __name__ == "__main__":
-#     app.run(debug=True)
