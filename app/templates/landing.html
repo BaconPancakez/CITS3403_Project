@@ -15,8 +15,8 @@
         <div class="_frame">
 
             <img 
-                src="{{ url_for('static', filename='images/web-logo.png') }}"
-                alt="UUUA logo"
+                src="{{ url_for('static', filename='image/web-logo.png') }}"
+                alt="web-logo"
                 class="_large"
             />
 
@@ -38,6 +38,9 @@
                 </div>
             </div>
 
+            <div class="scroll-indicator">
+                    <span></span>
+            </div>
         </div>
     </div>
 </section>
@@ -113,7 +116,7 @@
 
                             <div class="col-md-4">
                                 <div class="d-flex gap-3">
-                                    <span class="badge bg-primary rounded-circle">1</span>
+                                    <span class="step-circle">1</span>
                                     <div>
                                         <h6>Create an account</h6>
                                         <p class="small text-muted">
@@ -125,7 +128,7 @@
 
                             <div class="col-md-4">
                                 <div class="d-flex gap-3">
-                                    <span class="badge bg-primary rounded-circle">2</span>
+                                    <span class="step-circle">2</span>
                                     <div>
                                         <h6>Browse or upload</h6>
                                         <p class="small text-muted">
@@ -137,7 +140,7 @@
 
                             <div class="col-md-4">
                                 <div class="d-flex gap-3">
-                                    <span class="badge bg-primary rounded-circle">3</span>
+                                    <span class="step-circle">3</span>
                                     <div>
                                         <h6>Rate and review</h6>
                                         <p class="small text-muted">
@@ -151,6 +154,23 @@
 
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+    <section class="cta-section">
+        <div class="cta-container text-center">
+            <h2 class="cta-title">Ready to join?</h2>
+            <p class="cta-subtitle">
+                Sign up in seconds with your UWA email and start sharing or discovering resources today.
+            </p>
+
+            <div class="cta-buttons">
+                <a href="{{ url_for('signup') }}" class="btn btn-light btn-lg">
+                    Create an account
+                </a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">
+                    Sign in
+                </a>
             </div>
         </div>
     </section>

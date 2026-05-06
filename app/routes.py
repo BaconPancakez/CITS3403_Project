@@ -2,7 +2,7 @@ from flask import render_template, request, redirect, url_for, flash, session
 
 from app import app, db
 
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, MOCK_COURSES
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
 
 
 def _favorite_codes():
@@ -25,14 +25,14 @@ def home():
     if not session.get("is_authenticated"):
         flash("Please log in to view courses.", "warning")
         return redirect(url_for("login"))
-    return render_template("home.html", courses=MOCK_COURSES)
+    return render_template("home.html", courses=FEATURED_COURSES)
 
 
 @app.route("/admin")
 def admin():
     if not session.get("is_authenticated"):
         return redirect(url_for("login"))
-    return render_template("admin.html", courses=MOCK_COURSES)
+    return render_template("admin.html", courses=FEATURED_COURSES)
 
 
 @app.route("/course")
