@@ -32,6 +32,7 @@ def course_list():
     page = request.args.get("page", default=1, type=int)
     q = request.args.get("q", default="", type=str).strip()
     q_lower = q.lower()
+    favorite_codes = _favorite_codes()
 
     if q_lower:
         filtered_units = [
@@ -42,14 +43,14 @@ def course_list():
     else:
         filtered_units = UWA_UNITS
 
-    total = len(filtered_units)
+    non_favorite_units = [u for u in filtered_units if u["code"] not in favorite_codes]
+    total = len(non_favorite_units)
     total_pages = max(1, (total + per_page - 1) // per_page)
     page = max(1, min(page, total_pages))
     start = (page - 1) * per_page
-    courses_page = filtered_units[start : start + per_page]
+    courses_page = non_favorite_units[start : start + per_page]
     showing_from = start + 1 if total else 0
     showing_to = min(page * per_page, total)
-    favorite_codes = _favorite_codes()
     return render_template(
         "courses.html",
         courses=courses_page,
