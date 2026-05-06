@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}UWA Study Hub{% endblock %}
+{% block title %}UUUA landing page{% endblock %}
 
 {% block page_css %}
 <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet" />
@@ -10,31 +10,31 @@
 
 {% block content %}
 
-<!-- LANDING HERO -->
 <section class="hero__carousel theme__impact">
     <div class="_viewport">
         <div class="_frame">
 
-            <!-- LOGO IMAGE -->
             <img 
-                src="{{ url_for('static', filename='image/web-logo.png') }}"
-                alt="UWA Study Hub"
+                src="{{ url_for('static', filename='images/web-logo.png') }}"
+                alt="UUUA logo"
                 class="_large"
             />
 
-            <!-- BLUE SHAPE -->
             <div class="_base"></div>
 
-            <!-- TEXT CONTENT -->
             <div class="hero-overlay">
-                <h1 class="hero-title m-0">UWA Study Hub</h1>
+                <h1 class="hero-title m-0">Welcome to UUUA</h1>
                 <p class="hero-kicker mb-3 fs-5">
-                    Learn together, grow together
+                    A student-run platform for sharing notes, resources, and course reviews to support UWA students.
                 </p>
 
                 <div class="d-flex gap-3 flex-wrap mt-4">
-                    <a href="{{ url_for('login') }}" class="btn btn-light btn-lg">Login</a>
-                    <a href="{{ url_for('signup') }}" class="btn btn-outline-light btn-lg">Sign Up</a>
+                    <a href="{{ url_for('signup') }}" class="btn btn-light btn-lg">
+                        Get Started
+                    </a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">
+                        Sign In
+                    </a>
                 </div>
             </div>
 
@@ -43,31 +43,33 @@
 </section>
 
 
-<!-- HOME CONTENT UNDER LANDING -->
 <main class="p-3 p-lg-4">
 
-    <!-- About -->
+    
     <section class="mb-5">
         <div class="row justify-content-center">
             <div class="col-12 col-lg-8 text-center">
                 <h2 class="fw-bold mb-3">What is UWA Study Hub?</h2>
                 <p class="lead text-muted">
-                    A platform built by students, for students. Share notes, discover resources,
-                    and leave honest course reviews — all in one place.
+                    A platform built by UWA students, for UWA students.
+                    Share notes, discover resources, and leave honest reviews — all in one place.
                 </p>
             </div>
         </div>
     </section>
 
-    <!-- Features -->
+    
     <section class="mb-5">
         <div class="row g-3">
+
             <div class="col-12 col-md-4">
                 <div class="card h-100 text-center">
                     <div class="card-body p-4">
                         <div class="fs-1 mb-3">📄</div>
                         <h5>Upload Notes</h5>
-                        <p class="text-muted">Share your study materials with others.</p>
+                        <p class="text-muted">
+                            Share your summaries, lecture notes, and study guides.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -77,7 +79,9 @@
                     <div class="card-body p-4">
                         <div class="fs-1 mb-3">🔍</div>
                         <h5>Find Resources</h5>
-                        <p class="text-muted">Browse notes uploaded by students.</p>
+                        <p class="text-muted">
+                            Browse notes uploaded by students across different units.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -87,44 +91,67 @@
                     <div class="card-body p-4">
                         <div class="fs-1 mb-3">⭐</div>
                         <h5>Review Courses</h5>
-                        <p class="text-muted">Help others choose units wisely.</p>
+                        <p class="text-muted">
+                            Leave feedback to help others choose better units.
+                        </p>
                     </div>
                 </div>
             </div>
+
         </div>
     </section>
 
-    <!-- Course Preview -->
+
     <section class="mb-5">
-        <h2 class="mb-4 text-center">Popular Courses</h2>
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-10">
+                <div class="card">
+                    <div class="card-body p-4">
+                        <h4 class="mb-4">How it works</h4>
 
-        <div class="row g-4">
-            {% for course in courses %}
-                {% if loop.index <= 3 %}
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h5 class="card-title">
-                                    {{ course.code }} {{ course.title }}
-                                </h5>
-                                <p class="text-muted">{{ course.summary }}</p>
+                        <div class="row g-3">
+
+                            <div class="col-md-4">
+                                <div class="d-flex gap-3">
+                                    <span class="badge bg-primary rounded-circle">1</span>
+                                    <div>
+                                        <h6>Create an account</h6>
+                                        <p class="small text-muted">
+                                            Register using your UWA email.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-footer bg-transparent">
-                                <a href="{{ url_for('course_detail', course_code=course.code) }}"
-                                   class="btn btn-sm btn-primary">
-                                    View
-                                </a>
+
+                            <div class="col-md-4">
+                                <div class="d-flex gap-3">
+                                    <span class="badge bg-primary rounded-circle">2</span>
+                                    <div>
+                                        <h6>Browse or upload</h6>
+                                        <p class="small text-muted">
+                                            Access notes or contribute your own.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
+
+                            <div class="col-md-4">
+                                <div class="d-flex gap-3">
+                                    <span class="badge bg-primary rounded-circle">3</span>
+                                    <div>
+                                        <h6>Rate and review</h6>
+                                        <p class="small text-muted">
+                                            Help others choose better courses.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        </div>
 
-        <div class="text-center mt-3">
-            <a href="{{ url_for('course_list') }}" class="btn btn-outline-primary">
-                View All Courses
-            </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
