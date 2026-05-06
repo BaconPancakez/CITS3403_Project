@@ -180,6 +180,43 @@ body.signup-page .sidebar {
     to { opacity: 1; transform: translateY(0); }
 }
 
+.courses-page .hero-banner {
+    min-height: 125px;
+}
+
+.courses-page .hero-overlay {
+    padding: 0.9rem 1.4rem;
+}
+
+.favorite-star {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0.2rem 0.35rem;
+    line-height: 1;
+    font-size: 1.35rem;
+    color: #64748b; /* slate */
+    cursor: pointer;
+}
+
+.favorite-star.is-on {
+    color: #f59e0b; /* amber */
+}
+
+.favorite-star:hover {
+    color: #475569;
+}
+
+.favorite-star.is-on:hover {
+    color: #d97706;
+}
+
+.favorite-star:focus-visible {
+    outline: 2px solid rgba(245, 158, 11, 0.55);
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+
 @media (max-width: 767.98px) {
     .app-shell {
         flex-direction: column;
@@ -228,6 +265,10 @@ body.signup-page .sidebar {
 
     .hero-banner {
         min-height: 200px;
+    }
+
+    .courses-page .hero-banner {
+        min-height: 110px;
     }
 
     .hero-overlay {
