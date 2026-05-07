@@ -3,7 +3,7 @@ from flask import render_template, request, redirect, url_for, flash, session
 from app import app, db
 
 from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
-
+REVIEWS = {}
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -12,7 +12,6 @@ def _favorite_codes():
 def _favorite_units():
     codes = _favorite_codes()
     return [u for u in UWA_UNITS if u["code"] in codes]
-
 
 
 @app.route("/")
@@ -102,7 +101,7 @@ def toggle_favorite_course(course_code):
     return redirect(url_for("course_list", page=page, q=q))
 
 
-@app.route("/course/<course_code>")
+@app.route("/course/<course_code>", methods=["GET", "POST"])
 def course_detail(course_code):
     if not session.get("is_authenticated"):
         flash("Please log in to view courses.", "warning")
@@ -113,9 +112,35 @@ def course_detail(course_code):
     if not course:
         flash("Course not found.", "warning")
         return redirect(url_for("course_list"))
+    if request.method == "POST":
+        rating = int(request.form.get("rating", 0))
+        text = request.form.get("review_text", "").strip()
 
-    return render_template("coursepg.html", course=course)
+        if rating < 1 or rating > 5:
+            flash("Invalid rating.", "danger")
+        else:
+            REVIEWS.setdefault(course["code"], []).append({
+                "rating": rating,
+                "text": text,
+                "user": session.get("user", "Anonymous")
+            })
+            flash("Review submitted!", "success")
 
+        return redirect(url_for("course_detail", course_code=course["code"]))
+
+    course_reviews = REVIEWS.get(course["code"], [])
+
+    avg_rating = (
+        round(sum(r["rating"] for r in course_reviews) / len(course_reviews), 1)
+        if course_reviews else None
+    )
+
+    return render_template(
+        "coursepg.html",
+        course=course,
+        reviews=course_reviews,
+        avg_rating=avg_rating
+    )
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -125,6 +150,8 @@ def login():
 
         if email == "admin@uwa.edu.au" and password == "1234":
             session["is_authenticated"] = True
+
+            session["user"] = email
             flash("Login successful!", "success")
             return redirect(url_for("home"))
         else:
