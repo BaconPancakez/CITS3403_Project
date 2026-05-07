@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Home - UWA Study Hub{% endblock %}
+
+{% block content %}
+    <div class="hero-banner">
+        <div class="hero-overlay">
+            <h1 class="hero-title m-0">Welcome back!</h1>
+            <p class="hero-kicker mb-3">Continue learning with UWA Study Hub</p>
+        </div>
+    </div>
+
+    <main class="p-4">
+        <section class="mb-5">
+            <h2 class="mb-4">Available Courses</h2>
+            <div class="row g-4">
+                {% for course in courses %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title course-name">
+                                    <a href="{{ url_for('course_detail', course_code=course.code) }}" class="text-decoration-none">
+                                        {{ course.name }}
+                                    </a>
+                                </h5>
+                                <p class="card-text text-muted">{{ course.code }}</p>
+                                <p class="card-text">{{ course.description }}</p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <a href="{{ url_for('course_detail', course_code=course.code) }}" class="btn btn-sm btn-primary">
+                                    View Course
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+{% endblock %}

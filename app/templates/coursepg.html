@@ -37,14 +37,56 @@
                 <div class="card mb-3">
                     <div class="card-body">
                         <h6>Reviews</h6>
-                        <p>Four stars - Great course!</p>
+
+                        {% if avg_rating %}
+                            <p class="fw-bold">Average Rating: {{ avg_rating }}/5</p>
+                        {% endif %}
+
+                        <form method="POST">
+                            <div class="mb-2">
+                                <select name="rating" class="form-select" required>
+                                    <option value="">Select rating</option>
+                                    <option value="5">★★★★★ (5)</option>
+                                    <option value="4">★★★★☆ (4)</option>
+                                    <option value="3">★★★☆☆ (3)</option>
+                                    <option value="2">★★☆☆☆ (2)</option>
+                                    <option value="1">★☆☆☆☆ (1)</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-2">
+                                <textarea 
+                                    name="review_text" 
+                                    class="form-control" 
+                                    placeholder="Write your review..." 
+                                    required>
+                                </textarea>
+                            </div>
+
+                            <button class="btn btn-primary w-100">Submit Review</button>
+                        </form>
+
+                        <hr>
+
+                        {% for r in reviews %}
+                            <div class="mb-2">
+                                <div class="text-warning">
+                                    {{ "★" * r.rating }}{{ "☆" * (5 - r.rating) }}
+                                </div>
+                                <p class="small text-muted mb-1">
+                                    <strong>{{ r.user }}:</strong> {{ r.text }}
+                                </p>
+                            </div>
+                        {% else %}
+                            <p class="text-muted small">No reviews yet.</p>
+                        {% endfor %}
                     </div>
                 </div>
 
                 <div class="card">
                     <div class="card-body">
                         <h6>Discussion</h6>
-                        <p><strong>User1:</strong> Anyone understand Week 3?</p>
+                        <p><strong>{{ session.get("user", "Anonymous") }}:</strong> Anyone understand Week 3?</p>
                         <input type="text" class="form-control" placeholder="Write a comment..." />
                     </div>
                 </div>

@@ -1,10 +1,9 @@
-# from app.models import Group
 from flask import render_template, request, redirect, url_for, flash, session
 
 from app import app, db
 
 from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
-
+REVIEWS = {}
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -17,17 +16,30 @@ def _favorite_units():
 
 @app.route("/")
 def index():
-    return render_template("admin.html", courses=FEATURED_COURSES)
+    return render_template("landing.html")
 
 
-@app.route("/dashboard")
-def dashboard():
-    """Course grid + sidebar; used when guests choose Home from auth pages."""
-    return render_template("admin.html", courses=FEATURED_COURSES)
+@app.route("/home")
+def home():
+    if not session.get("is_authenticated"):
+        flash("Please log in to view courses.", "warning")
+        return redirect(url_for("login"))
+    return render_template("home.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
+
+
+@app.route("/admin")
+def admin():
+    if not session.get("is_authenticated"):
+        return redirect(url_for("login"))
+    return render_template("admin.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
 
 
 @app.route("/course")
 def course_list():
+    if not session.get("is_authenticated"):
+        flash("Please log in to view courses.", "warning")
+        return redirect(url_for("login"))
+
     per_page = 80
     page = request.args.get("page", default=1, type=int)
     q = request.args.get("q", default="", type=str).strip()
@@ -60,8 +72,8 @@ def course_list():
         total_pages=total_pages,
         total_units=total,
         per_page=per_page,
-        showing_from=showing_from,
-        showing_to=showing_to,
+        showing_from=start + 1 if total else 0,
+        showing_to=min(page * per_page, total),
         q=q,
     )
 
@@ -69,43 +81,80 @@ def course_list():
 @app.route("/course/favorite/<course_code>", methods=["POST"])
 def toggle_favorite_course(course_code):
     code = course_code.strip().upper()
+
     if code not in UWA_UNITS_BY_CODE:
         flash("Course not found.", "warning")
         return redirect(url_for("course_list"))
 
     favorites = _favorite_codes()
+
     if code in favorites:
         favorites.remove(code)
     else:
         favorites.add(code)
+
     session["favorite_course_codes"] = sorted(favorites)
 
     page = request.form.get("page", default=1, type=int)
     q = request.form.get("q", default="", type=str)
+
     return redirect(url_for("course_list", page=page, q=q))
 
 
-@app.route("/course/<course_code>")
+@app.route("/course/<course_code>", methods=["GET", "POST"])
 def course_detail(course_code):
+    if not session.get("is_authenticated"):
+        flash("Please log in to view courses.", "warning")
+        return redirect(url_for("login"))
+
     course = UWA_UNITS_BY_CODE.get(course_code.strip().upper())
+
     if not course:
         flash("Course not found.", "warning")
         return redirect(url_for("course_list"))
+    if request.method == "POST":
+        rating = int(request.form.get("rating", 0))
+        text = request.form.get("review_text", "").strip()
 
-    return render_template("coursepg.html", course=course)
+        if rating < 1 or rating > 5:
+            flash("Invalid rating.", "danger")
+        else:
+            REVIEWS.setdefault(course["code"], []).append({
+                "rating": rating,
+                "text": text,
+                "user": session.get("user", "Anonymous")
+            })
+            flash("Review submitted!", "success")
+
+        return redirect(url_for("course_detail", course_code=course["code"]))
+
+    course_reviews = REVIEWS.get(course["code"], [])
+
+    avg_rating = (
+        round(sum(r["rating"] for r in course_reviews) / len(course_reviews), 1)
+        if course_reviews else None
+    )
+
+    return render_template(
+        "coursepg.html",
+        course=course,
+        reviews=course_reviews,
+        avg_rating=avg_rating,
+        favorite_units=_favorite_units()
+    )
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        print("RAW FORM DATA:", request.form)
-
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "").strip()
 
         if email == "admin@uwa.edu.au" and password == "1234":
             session["is_authenticated"] = True
+
+            session["user"] = email
             flash("Login successful!", "success")
-            return redirect(url_for("index"))
+            return redirect(url_for("home"))
         else:
             flash("Invalid username or password.", "danger")
             return redirect(url_for("login"))
@@ -138,9 +187,6 @@ def signup():
             return redirect(url_for("signup"))
 
         flash("Signup submitted.", "success")
-        return redirect(url_for("signup"))
+        return redirect(url_for("login"))
 
     return render_template("signup.html")
-
-# if __name__ == "__main__":
-#     app.run(debug=True)
