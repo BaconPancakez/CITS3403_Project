@@ -24,14 +24,14 @@ def home():
     if not session.get("is_authenticated"):
         flash("Please log in to view courses.", "warning")
         return redirect(url_for("login"))
-    return render_template("home.html", courses=FEATURED_COURSES)
+    return render_template("home.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
 
 
 @app.route("/admin")
 def admin():
     if not session.get("is_authenticated"):
         return redirect(url_for("login"))
-    return render_template("admin.html", courses=FEATURED_COURSES)
+    return render_template("admin.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
 
 
 @app.route("/course")
@@ -139,7 +139,8 @@ def course_detail(course_code):
         "coursepg.html",
         course=course,
         reviews=course_reviews,
-        avg_rating=avg_rating
+        avg_rating=avg_rating,
+        favorite_units=_favorite_units()
     )
 
 @app.route("/login", methods=["GET", "POST"])

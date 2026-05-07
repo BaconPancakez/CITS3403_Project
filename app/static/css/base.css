@@ -217,6 +217,16 @@ body.signup-page .sidebar {
     border-radius: 10px;
 }
 
+.sidebar h6 {
+    letter-spacing: 0.08em;
+    opacity: 0.8;
+}
+
+.sidebar .nav-link.small {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.65rem;
+}
+
 @media (max-width: 767.98px) {
     .app-shell {
         flex-direction: column;

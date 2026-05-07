@@ -24,12 +24,28 @@
             <!-- <div class="sidebar-brand">Admin</div> -->
             <nav class="sidebar-nav">
                 <a class="nav-link{% if request.endpoint == 'home' or (request.endpoint == 'index' and is_authenticated) %} active{% endif %}" href="{{ url_for('home') }}">Home</a>
-                <a class="nav-link{% if request.endpoint in ['course_list', 'course_detail'] %} active{% endif %}" href="{{ url_for('course_list') }}">Courses</a>
+                <a class="nav-link{% if request.endpoint == 'course_list' %} active{% endif %}" href="{{ url_for('course_list') }}">Courses</a>
                 {% if not is_authenticated %}
                     <a class="nav-link{% if request.endpoint == 'login' %} active{% endif %}" href="{{ url_for('login') }}">Login</a>
                     <a class="nav-link{% if request.endpoint == 'signup' %} active{% endif %}" href="{{ url_for('signup') }}">Signup</a>
                 {% endif %}
             </nav>
+            {% if is_authenticated and favorite_units %}
+                <div class="mt-4">
+                    <h6 class="text-light text-uppercase small mb-2">Favourited Courses</h6>
+
+                    <div class="d-flex flex-column gap-2">
+                        {% for unit in favorite_units[:5] %}
+                            <a
+                                href="{{ url_for('course_detail', course_code=unit.code) }}"
+                                class="nav-link small{% if request.endpoint == 'course_detail' and course.code == unit.code %} active{% endif %}"
+                            >
+                                {{ unit.code }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
             <div class="sidebar-footer">
                 {% if is_authenticated %}
                     <form method="post" action="{{ url_for('logout') }}">
