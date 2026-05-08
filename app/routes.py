@@ -130,7 +130,6 @@ def course_detail(course_code):
                     text=text,
                 ))
                 db.session.commit()
-                flash("Review submitted!", "success")
 
         elif form_type == "discussion":
             comment = request.form.get("comment", "").strip()
@@ -144,7 +143,6 @@ def course_detail(course_code):
                     text=comment,
                 ))
                 db.session.commit()
-                flash("Comment posted!", "success")
 
         return redirect(url_for("course_detail", course_code=course["code"]))
 
