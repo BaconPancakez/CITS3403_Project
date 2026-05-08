@@ -7,3 +7,6 @@ venv/
 env/
 .env
 *.pyc
+*.db
+*.sqlite
+*.sqlite3
