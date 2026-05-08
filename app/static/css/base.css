@@ -28,6 +28,7 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 0; /* avoid flex item collapsing to 0 width beside sidebar */
+    padding-left: 240px;
 }
 
 /* When sidebar is hidden (auth), main column must span full width */
@@ -35,10 +36,15 @@ body.login-page .app-content,
 body.signup-page .app-content {
     flex: 1 1 100%;
     width: 100%;
+    padding-left: 0;
 }
 
 .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
     width: 240px;
+    height: 100vh;
     flex: 0 0 240px;
     display: flex;
     flex-direction: column;
@@ -175,6 +181,32 @@ body.signup-page .sidebar {
     border-color: #ea580c;
 }
 
+.notes-modal-dialog {
+    width: 90vw;
+    max-width: 90vw;
+}
+
+.notes-modal-dialog .modal-content {
+    height: 90vh;
+}
+
+.notes-modal-dialog .modal-body {
+    display: flex;
+    flex: 1 1 auto;
+}
+
+.notes-modal-frame {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+}
+
+.notes-modal-frame iframe {
+    border: 0;
+    width: 100%;
+    height: auto;
+}
+
 @keyframes heroFade {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
@@ -241,8 +273,10 @@ body.signup-page .sidebar {
         border-right: none;
         border-top: 1px solid rgba(255, 255, 255, 0.14);
         position: fixed;
+        top: auto;
         bottom: 0;
         left: 0;
+        height: auto;
         z-index: 20;
     }
 
@@ -266,6 +300,8 @@ body.signup-page .sidebar {
 
     .app-content {
         padding-bottom: 130px;
+        padding-left: 0;
+        
     }
 
     body.login-page .app-content,
@@ -283,5 +319,14 @@ body.signup-page .sidebar {
 
     .hero-overlay {
         padding: 1rem;
+    }
+
+    .notes-modal-dialog {
+        width: 90vw;
+        max-width: 90vw;
+    }
+
+    .notes-modal-dialog .modal-content {
+        height: 95vh;
     }
 }
