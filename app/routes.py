@@ -2,8 +2,7 @@ from flask import render_template, request, redirect, url_for, flash, session
 
 from app import app, db
 
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE
-REVIEWS = {}
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -112,26 +111,57 @@ def course_detail(course_code):
     if not course:
         flash("Course not found.", "warning")
         return redirect(url_for("course_list"))
-    if request.method == "POST":
-        rating = int(request.form.get("rating", 0))
-        text = request.form.get("review_text", "").strip()
 
-        if rating < 1 or rating > 5:
-            flash("Invalid rating.", "danger")
-        else:
-            REVIEWS.setdefault(course["code"], []).append({
-                "rating": rating,
-                "text": text,
-                "user": session.get("user", "Anonymous")
-            })
-            flash("Review submitted!", "success")
+    if request.method == "POST":
+        form_type = request.form.get("form_type")
+        user_id   = session.get("user_id")          # set by login route
+
+        if form_type == "review":
+            rating = int(request.form.get("rating", 0))
+            text   = request.form.get("review_text", "").strip()
+
+            if rating < 1 or rating > 5:
+                flash("Invalid rating.", "danger")
+            else:
+                db.session.add(Review(
+                    course_code=course["code"],
+                    user_id=user_id,
+                    rating=rating,
+                    text=text,
+                ))
+                db.session.commit()
+
+        elif form_type == "discussion":
+            comment = request.form.get("comment", "").strip()
+
+            if not comment:
+                flash("Comment cannot be empty.", "danger")
+            else:
+                db.session.add(Discussion(
+                    course_code=course["code"],
+                    user_id=user_id,
+                    text=comment,
+                ))
+                db.session.commit()
 
         return redirect(url_for("course_detail", course_code=course["code"]))
 
-    course_reviews = REVIEWS.get(course["code"], [])
+    # ── GET ──────────────────────────────────────────────────────────────────
+    course_reviews = (
+        Review.query
+        .filter_by(course_code=course["code"])
+        .order_by(Review.created_at.desc())
+        .all()
+    )
+    course_discussions = (
+        Discussion.query
+        .filter_by(course_code=course["code"])
+        .order_by(Discussion.created_at.asc())
+        .all()
+    )
 
     avg_rating = (
-        round(sum(r["rating"] for r in course_reviews) / len(course_reviews), 1)
+        round(sum(r.rating for r in course_reviews) / len(course_reviews), 1)
         if course_reviews else None
     )
 
@@ -139,8 +169,9 @@ def course_detail(course_code):
         "coursepg.html",
         course=course,
         reviews=course_reviews,
+        discussions=course_discussions,
         avg_rating=avg_rating,
-        favorite_units=_favorite_units()
+        favorite_units=_favorite_units(),
     )
 
 @app.route("/login", methods=["GET", "POST"])
@@ -153,6 +184,9 @@ def login():
             session["is_authenticated"] = True
 
             session["user"] = email
+            session["is_authenticated"]=True
+            session["user_id"]=1111111
+            session["user_name"] = email
             flash("Login successful!", "success")
             return redirect(url_for("home"))
         else:

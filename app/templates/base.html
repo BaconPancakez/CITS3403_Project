@@ -16,6 +16,7 @@
     />
     <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet" />
     {% block page_css %}{% endblock %}
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='image/favicon.png') }}">
     <title>{% block title %}Dashboard{% endblock %}</title>
 </head>
 <body class="{% block body_class %}{% endblock %}">

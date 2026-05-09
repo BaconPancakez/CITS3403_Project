@@ -3,107 +3,132 @@
 {% block title %}{{ course.code }}{% endblock %}
 
 {% block content %}
-    <header class="hero-banner border-bottom">
-        <div class="hero-overlay">
-            <h1 class="hero-title m-0">{{ course.code }}</h1>
-            <p class="hero-kicker mb-3 fs-5">{{ course.title }}</p>
-        </div>
-    </header>
+<header class="hero-banner border-bottom">
+    <div class="hero-overlay">
+        <h1 class="hero-title m-0">{{ course.code }}</h1>
+        <p class="hero-kicker mb-3 fs-5">{{ course.title }}</p>
+    </div>
+</header>
 
-    <main class="p-3 p-lg-4">
-        <div class="row g-3">
-            <div class="col-12 col-lg-8">
-                <div
-                    class="card mb-3 text-start"
-                    role="button"
-                    tabindex="0"
-                    data-bs-toggle="modal"
-                    data-bs-target="#notesPreviewModal"
-                    aria-label="Open notes preview"
-                >
-                    <div class="card-body">
-                        <h5 class="card-title">Week 1 Notes</h5>
-                        <p class="text-muted">Uploaded by User1</p>
+<main class="p-3 p-lg-4">
+    <div class="row g-3">
 
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button class="btn btn-sm btn-outline-success" type="button">Upvote</button>
-                            <button class="btn btn-sm btn-outline-danger" type="button">Downvote</button>
-                            <button class="btn btn-sm btn-outline-warning" type="button">Report</button>
-                        </div>
+        {# ── Left column: notes cards ── #}
+        <div class="col-12 col-lg-8">
+            <div class="card mb-3 text-start" role="button" tabindex="0" data-bs-toggle="modal"
+                data-bs-target="#notesPreviewModal" aria-label="Open notes preview">
+                <div class="card-body">
+                    <h5 class="card-title">Week 1 Notes</h5>
+                    <p class="text-muted">Uploaded by User1</p>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-sm btn-outline-success" type="button">Upvote</button>
+                        <button class="btn btn-sm btn-outline-danger" type="button">Downvote</button>
+                        <button class="btn btn-sm btn-outline-warning" type="button">Report</button>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="col-12 col-lg-4">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6>Upload Notes</h6>
-                        <input type="file" class="form-control mb-2" />
-                        <button class="btn btn-primary w-100">Upload</button>
-                    </div>
+        {# ── Right sidebar ── #}
+        <div class="col-12 col-lg-4">
+
+            {# Upload card #}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>Upload Notes</h6>
+                    <input type="file" class="form-control mb-2" />
+                    <button class="btn btn-primary w-100">Upload</button>
                 </div>
+            </div>
 
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6>Reviews</h6>
+            {# Reviews card #}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>Reviews</h6>
 
-                        {% if avg_rating %}
-                            <p class="fw-bold">Average Rating: {{ avg_rating }}/5</p>
-                        {% endif %}
+                    {% if avg_rating %}
+                    <p class="fw-bold">Average Rating: {{ avg_rating }}/5</p>
+                    {% endif %}
 
-                        <form method="POST">
-                            <div class="mb-2">
-                                <select name="rating" class="form-select" required>
-                                    <option value="">Select rating</option>
-                                    <option value="5">★★★★★ (5)</option>
-                                    <option value="4">★★★★☆ (4)</option>
-                                    <option value="3">★★★☆☆ (3)</option>
-                                    <option value="2">★★☆☆☆ (2)</option>
-                                    <option value="1">★☆☆☆☆ (1)</option>
-                                </select>
-                            </div>
+                    <form method="POST">
+                        <input type="hidden" name="form_type" value="review">
 
-                            <div class="mb-2">
-                                <textarea 
-                                    name="review_text" 
-                                    class="form-control" 
-                                    placeholder="Write your review..." 
-                                    required>
-                                </textarea>
-                            </div>
+                        <div class="mb-2">
+                            <select name="rating" class="form-select" required>
+                                <option value="">Select rating</option>
+                                <option value="5">★★★★★ (5)</option>
+                                <option value="4">★★★★☆ (4)</option>
+                                <option value="3">★★★☆☆ (3)</option>
+                                <option value="2">★★☆☆☆ (2)</option>
+                                <option value="1">★☆☆☆☆ (1)</option>
+                            </select>
+                        </div>
 
-                            <button class="btn btn-primary w-100">Submit Review</button>
-                        </form>
+                        <div class="mb-2">
+                            <textarea name="review_text" class="form-control" placeholder="Write your review..."
+                                required></textarea>
+                        </div>
 
-                        <hr>
+                        <button class="btn btn-primary w-100">Submit Review</button>
+                    </form>
 
-                        {% for r in reviews %}
-                            <div class="mb-2">
-                                <div class="text-warning">
-                                    {{ "★" * r.rating }}{{ "☆" * (5 - r.rating) }}
-                                </div>
-                                <p class="small text-muted mb-1">
-                                    <strong>{{ r.user }}:</strong> {{ r.text }}
-                                </p>
-                            </div>
+                    <hr>
+
+                    {% for r in reviews %}
+                    <div class="mb-2">
+                        <div class="text-warning">
+                            {{ "★" * r.rating }}{{ "☆" * (5 - r.rating) }}
+                        </div>
+                        <p class="small text-muted mb-1">
+                            <strong>{{ r.display_name }}:</strong> {{ r.text }}
+                        </p>
+                        <p class="text-muted" style="font-size: 0.75rem;">
+                            {{ r.created_at.strftime("%d %b %Y") }}
+                        </p>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">No reviews yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Discussion card #}
+            <div class="card">
+                <div class="card-body">
+                    <h6>Discussion</h6>
+
+                    <div class="mb-3" style="max-height: 260px; overflow-y: auto;">
+                        {% for c in discussions %}
+                        <div class="mb-2 p-2 bg-light rounded">
+                            <p class="small mb-0">
+                                <strong>{{ c.display_name }}:</strong> {{ c.text }}
+                            </p>
+                            <p class="text-muted" style="font-size: 0.75rem;">
+                                {{ c.created_at.strftime("%d %b %Y %H:%M") }}
+                            </p>
+                        </div>
                         {% else %}
-                            <p class="text-muted small">No reviews yet.</p>
+                        <p class="text-muted small">No comments yet. Start the conversation!</p>
                         {% endfor %}
                     </div>
-                </div>
 
-                <div class="card">
-                    <div class="card-body">
-                        <h6>Discussion</h6>
-                        <p><strong>{{ session.get("user", "Anonymous") }}:</strong> Anyone understand Week 3?</p>
-                        <input type="text" class="form-control" placeholder="Write a comment..." />
-                    </div>
+                    <form method="POST">
+                        <input type="hidden" name="form_type" value="discussion">
+                        <div class="input-group">
+                            <input type="text" name="comment" class="form-control" placeholder="Write a comment…"
+                                required>
+                            <button class="btn btn-primary" type="submit">Post</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        </div>
-    </main>
+
+        </div>{# end col-lg-4 #}
+    </div>{# end row #}
+</main>
 {% endblock %}
 
 {% block modals %}
-    {% include "partials/notes_modal.html" %}
+{% include "partials/notes_modal.html" %}
 {% endblock %}
