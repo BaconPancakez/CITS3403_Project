@@ -1,8 +1,8 @@
 from flask import render_template, request, redirect, url_for, flash, session
 
 from app import app, db
-
 from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion
+
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -39,41 +39,57 @@ def course_list():
         flash("Please log in to view courses.", "warning")
         return redirect(url_for("login"))
 
-    per_page = 80
-    page = request.args.get("page", default=1, type=int)
-    q = request.args.get("q", default="", type=str).strip()
-    q_lower = q.lower()
+    q               = request.args.get("q",              default="", type=str).strip()
+    school_filter   = request.args.get("school",         default="", type=str).strip()
+    level_filter    = request.args.get("level_of_study", default="", type=str).strip()
+    location_filter = request.args.get("location",       default="", type=str).strip()
+
+    q_lower        = q.lower()
     favorite_codes = _favorite_codes()
+
+    filtered_units = UWA_UNITS
 
     if q_lower:
         filtered_units = [
-            u
-            for u in UWA_UNITS
+            u for u in filtered_units
             if q_lower in u["code"].lower() or q_lower in u["title"].lower()
         ]
-    else:
-        filtered_units = UWA_UNITS
+    if school_filter:
+        filtered_units = [u for u in filtered_units if u.get("school") == school_filter]
+    if level_filter:
+        filtered_units = [u for u in filtered_units if level_filter in u.get("level_of_study", "")]
+    if location_filter:
+        filtered_units = [u for u in filtered_units if location_filter in u.get("location", "")]
 
-    non_favorite_units = [u for u in filtered_units if u["code"] not in favorite_codes]
-    total = len(non_favorite_units)
-    total_pages = max(1, (total + per_page - 1) // per_page)
-    page = max(1, min(page, total_pages))
-    start = (page - 1) * per_page
-    courses_page = non_favorite_units[start : start + per_page]
-    showing_from = start + 1 if total else 0
-    showing_to = min(page * per_page, total)
+    courses = [u for u in filtered_units if u["code"] not in favorite_codes]
+
+    # Dynamic options for dropdown filters (always built from full catalogue)
+    schools   = sorted({u["school"] for u in UWA_UNITS if u.get("school")})
+    levels    = sorted({
+        lvl
+        for u in UWA_UNITS
+        for lvl in u.get("level_of_study", "").split(" | ")
+        if lvl
+    })
+    locations = sorted({
+        loc
+        for u in UWA_UNITS
+        for loc in u.get("location", "").split(" | ")
+        if loc
+    })
+
     return render_template(
         "courses.html",
-        courses=courses_page,
+        courses=courses,
         favorite_units=_favorite_units(),
         favorite_codes=favorite_codes,
-        page=page,
-        total_pages=total_pages,
-        total_units=total,
-        per_page=per_page,
-        showing_from=start + 1 if total else 0,
-        showing_to=min(page * per_page, total),
         q=q,
+        school_filter=school_filter,
+        level_filter=level_filter,
+        location_filter=location_filter,
+        schools=schools,
+        levels=levels,
+        locations=locations,
     )
 
 
@@ -94,10 +110,18 @@ def toggle_favorite_course(course_code):
 
     session["favorite_course_codes"] = sorted(favorites)
 
-    page = request.form.get("page", default=1, type=int)
-    q = request.form.get("q", default="", type=str)
+    q               = request.form.get("q",              default="", type=str)
+    school_filter   = request.form.get("school",         default="", type=str)
+    level_filter    = request.form.get("level_of_study", default="", type=str)
+    location_filter = request.form.get("location",       default="", type=str)
 
-    return redirect(url_for("course_list", page=page, q=q))
+    return redirect(url_for(
+        "course_list",
+        q=q,
+        school=school_filter,
+        level_of_study=level_filter,
+        location=location_filter,
+    ))
 
 
 @app.route("/course/<course_code>", methods=["GET", "POST"])
@@ -114,7 +138,7 @@ def course_detail(course_code):
 
     if request.method == "POST":
         form_type = request.form.get("form_type")
-        user_id   = session.get("user_id")          # set by login route
+        user_id   = session.get("user_id")
 
         if form_type == "review":
             rating = int(request.form.get("rating", 0))
@@ -174,19 +198,18 @@ def course_detail(course_code):
         favorite_units=_favorite_units(),
     )
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
+        email    = request.form.get("email",    "").strip().lower()
         password = request.form.get("password", "").strip()
 
         if email == "admin@uwa.edu.au" and password == "1234":
             session["is_authenticated"] = True
-
-            session["user"] = email
-            session["is_authenticated"]=True
-            session["user_id"]=1111111
-            session["user_name"] = email
+            session["user"]             = email
+            session["user_id"]          = 1111111
+            session["user_name"]        = email
             flash("Login successful!", "success")
             return redirect(url_for("home"))
         else:
@@ -211,9 +234,9 @@ def logout():
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        email = request.form.get("email", "").strip()
-        password = request.form.get("password", "")
+        name             = request.form.get("name",             "").strip()
+        email            = request.form.get("email",            "").strip()
+        password         = request.form.get("password",         "")
         confirm_password = request.form.get("confirm_password", "")
 
         if password != confirm_password:

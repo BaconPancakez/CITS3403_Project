@@ -48,25 +48,29 @@ class Discussion(TimestampMixin, db.Model):
     def display_name(self):
         return self.user.name if self.user else "Anonymous"
 
+
+# ── Course catalogue ──────────────────────────────────────────────────────────
+
+# Compact set for dashboard cards (full catalogue is on /course).
 FEATURED_COURSES = [
     {
-        "code": "CITS3403",
-        "title": "Agile Web Development",
+        "code":    "CITS3403",
+        "title":   "Agile Web Development",
         "summary": "Project-based web development, APIs, and teamwork.",
     },
     {
-        "code": "CITS1402",
-        "title": "Relational Database Management Systems",
+        "code":    "CITS1402",
+        "title":   "Relational Database Management Systems",
         "summary": "SQL, modelling, and database design fundamentals.",
     },
     {
-        "code": "CITS5508",
-        "title": "Machine Learning",
+        "code":    "CITS5508",
+        "title":   "Machine Learning",
         "summary": "Algorithms and practice for prediction and pattern discovery.",
     },
 ]
 
-_UNITS_PATH = Path(__file__).resolve().parent / "data" / "uwa_units.json"
+_UNITS_PATH = Path(__file__).resolve().parent / "data" / "uwa_units_detailed.json"
 
 
 def _load_uwa_units():
@@ -82,12 +86,30 @@ def _load_uwa_units():
     out = []
     for row in data:
         if isinstance(row, dict) and row.get("code") and row.get("title"):
+            # Handle variations in JSON description keys and strip pandas nan artifacts
+            raw_desc = (
+                row.get("summary")
+                or row.get("description")
+                or row.get("Description")
+                or ""
+            )
+            summary_text = str(raw_desc).strip()
+            if summary_text.lower() == "nan":
+                summary_text = ""
+
             out.append(
                 {
-                    "code":    str(row["code"]).strip(),
-                    "title":   str(row["title"]).strip(),
-                    "summary": str(row.get("summary") or "").strip()
-                    or "UWA Handbook unit — open for overview and offerings.",
+                    "code":              str(row["code"]).strip(),
+                    "title":             str(row["title"]).strip(),
+                    "summary":           summary_text or "UWA Handbook unit — open for overview and offerings.",
+                    "credit_points":     row.get("credit_points", 0),
+                    "level_of_study":    str(row.get("level_of_study")    or "").strip(),
+                    "url":               str(row.get("url")               or "").strip(),
+                    "school":            str(row.get("school")            or "").strip(),
+                    "availability":      str(row.get("availability")      or "").strip(),
+                    "location":          str(row.get("location")          or "").strip(),
+                    "coordinators":      str(row.get("coordinators")      or "").strip(),
+                    "field_of_education":str(row.get("field_of_education")or "").strip(),
                 }
             )
     return sorted(out, key=lambda r: r["code"])

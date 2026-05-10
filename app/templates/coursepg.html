@@ -7,14 +7,62 @@
     <div class="hero-overlay">
         <h1 class="hero-title m-0">{{ course.code }}</h1>
         <p class="hero-kicker mb-3 fs-5">{{ course.title }}</p>
+        {% if course.url %}
+        <a href="{{ course.url }}" target="_blank" class="btn btn-outline-primary btn-sm mt-1">
+            View in UWA Handbook <i class="bi bi-box-arrow-up-right ms-1"></i>
+        </a>
+        {% endif %}
     </div>
 </header>
 
 <main class="p-3 p-lg-4">
     <div class="row g-3">
 
-        {# ── Left column: notes cards ── #}
+        {# ── Left column ── #}
         <div class="col-12 col-lg-8">
+
+            {# Unit details card #}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">About this Unit</h5>
+                    <p class="card-text text-muted">{{ course.summary }}</p>
+
+                    <hr>
+
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">School</h6>
+                            <div>{{ course.school or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Level of Study</h6>
+                            <div>{{ course.level_of_study or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Credit Points</h6>
+                            <div>{{ course.credit_points or '0' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Location</h6>
+                            <div>{{ course.location or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Availability</h6>
+                            <div>{{ course.availability or 'N/A' }}</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Coordinator(s)</h6>
+                            <div>{{ course.coordinators or 'N/A' }}</div>
+                        </div>
+                        <div class="col-12">
+                            <h6 class="text-muted text-uppercase small fw-bold mb-1">Field of Education</h6>
+                            <div>{{ course.field_of_education or 'N/A' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Notes card #}
             <div class="card mb-3 text-start" role="button" tabindex="0" data-bs-toggle="modal"
                 data-bs-target="#notesPreviewModal" aria-label="Open notes preview">
                 <div class="card-body">
@@ -28,7 +76,8 @@
                     </div>
                 </div>
             </div>
-        </div>
+
+        </div>{# end col-lg-8 #}
 
         {# ── Right sidebar ── #}
         <div class="col-12 col-lg-4">
@@ -37,6 +86,7 @@
             <div class="card mb-3">
                 <div class="card-body">
                     <h6>Upload Notes</h6>
+                    <p class="small text-muted mb-2">Share your materials with other students.</p>
                     <input type="file" class="form-control mb-2" />
                     <button class="btn btn-primary w-100">Upload</button>
                 </div>
