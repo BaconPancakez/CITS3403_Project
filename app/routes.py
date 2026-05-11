@@ -28,7 +28,7 @@ def home():
 
 @app.route("/admin")
 def admin():
-    if not session.get("is_authenticated"):
+    if session.get("role") != "admin":
         return redirect(url_for("login"))
     return render_template("admin.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
 
@@ -198,6 +198,37 @@ def course_detail(course_code):
         favorite_units=_favorite_units(),
     )
 
+@app.route("/admin/review/delete/<int:review_id>", methods=["POST"])
+def delete_review(review_id):
+    if session.get("role") != "admin":
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for("home"))
+
+    review = Review.query.get_or_404(review_id)
+    course_code = review.course_code
+
+    db.session.delete(review)
+    db.session.commit()
+
+    flash("Review removed successfully.", "success")
+    return redirect(url_for("course_detail", course_code=course_code))
+
+
+@app.route("/admin/discussion/delete/<int:discussion_id>", methods=["POST"])
+def delete_discussion(discussion_id):
+    if session.get("role") != "admin":
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for("home"))
+
+    discussion = Discussion.query.get_or_404(discussion_id)
+    course_code = discussion.course_code
+
+    db.session.delete(discussion)
+    db.session.commit()
+
+    flash("Discussion removed successfully.", "success")
+    return redirect(url_for("course_detail", course_code=course_code))
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -209,8 +240,17 @@ def login():
             session["is_authenticated"] = True
             session["user"]             = email
             session["user_id"]          = 1111111
-            session["user_name"]        = email
-            flash("Login successful!", "success")
+            session["user_name"]        = "Admin"
+            session["role"]             = "admin"
+            flash("Admin Login successful!", "success")
+            return redirect(url_for("admin"))
+        elif email.endswith("@student.uwa.edu.au") and password == "1234":
+            session["is_authenticated"] = True
+            session["user"]             = email
+            session["user_id"]          = hash(email) % 10000000
+            session["user_name"]        = email.split("@")[0]
+            session["role"]             = "student"
+            flash("Student Login successful!", "success")
             return redirect(url_for("home"))
         else:
             flash("Invalid username or password.", "danger")
@@ -227,6 +267,11 @@ def forgot_password():
 @app.route("/logout", methods=["POST"])
 def logout():
     session.pop("is_authenticated", None)
+    session.pop("user", None)
+    session.pop("user_id", None)
+    session.pop("user_name", None)
+    session.pop("role", None)
+    session.pop("favorite_course_codes", None)
     flash("Logged out.", "info")
     return redirect(url_for("index"))
 
