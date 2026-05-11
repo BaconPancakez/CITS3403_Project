@@ -133,6 +133,13 @@
                         <p class="small text-muted mb-1">
                             <strong>{{ r.display_name }}:</strong> {{ r.text }}
                         </p>
+                        {% if session.get("role") == "admin" %}
+                        <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}">
+                            <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
+                                Remove Review
+                            </button>
+                        </form>
+                        {% endif %}
                         <p class="text-muted" style="font-size: 0.75rem;">
                             {{ r.created_at.strftime("%d %b %Y") }}
                         </p>
@@ -157,6 +164,13 @@
                             <p class="text-muted" style="font-size: 0.75rem;">
                                 {{ c.created_at.strftime("%d %b %Y %H:%M") }}
                             </p>
+                            {% if session.get("role") == "admin" %}
+                            <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
+                                <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
+                                    Remove Comment
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                         {% else %}
                         <p class="text-muted small">No comments yet. Start the conversation!</p>
