@@ -1,8 +1,10 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from flask_login import UserMixin                                # ← fix 1: import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
-from app import db
+from app import db, login                                       # ← fix 2: import login manager
 
 
 # ── Mixin ────────────────────────────────────────────────────────────────────
@@ -15,11 +17,23 @@ class TimestampMixin:
 
 # ── Core models ──────────────────────────────────────────────────────────────
 
-class User(db.Model):
-    id    = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    name  = db.Column(db.String(120), nullable=True)
-    role  = db.Column(db.String(20),  nullable=True)
+class User(UserMixin, db.Model):
+    id            = db.Column(db.Integer, primary_key=True)
+    email         = db.Column(db.String(255), unique=True, nullable=False)
+    name          = db.Column(db.String(120), nullable=True)
+    role          = db.Column(db.String(20),  nullable=True)
+    password_hash = db.Column(db.String(256), nullable=True)    # ← wider column for modern hash formats
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password) # ← fix 3: pass password arg
+
+
+@login.user_loader
+def load_user(id):
+    return User.query.get(int(id))
 
 
 class Review(TimestampMixin, db.Model):
@@ -51,7 +65,6 @@ class Discussion(TimestampMixin, db.Model):
 
 # ── Course catalogue ──────────────────────────────────────────────────────────
 
-# Compact set for dashboard cards (full catalogue is on /course).
 FEATURED_COURSES = [
     {
         "code":    "CITS3403",
@@ -86,7 +99,6 @@ def _load_uwa_units():
     out = []
     for row in data:
         if isinstance(row, dict) and row.get("code") and row.get("title"):
-            # Handle variations in JSON description keys and strip pandas nan artifacts
             raw_desc = (
                 row.get("summary")
                 or row.get("description")
@@ -99,17 +111,17 @@ def _load_uwa_units():
 
             out.append(
                 {
-                    "code":              str(row["code"]).strip(),
-                    "title":             str(row["title"]).strip(),
-                    "summary":           summary_text or "UWA Handbook unit — open for overview and offerings.",
-                    "credit_points":     row.get("credit_points", 0),
-                    "level_of_study":    str(row.get("level_of_study")    or "").strip(),
-                    "url":               str(row.get("url")               or "").strip(),
-                    "school":            str(row.get("school")            or "").strip(),
-                    "availability":      str(row.get("availability")      or "").strip(),
-                    "location":          str(row.get("location")          or "").strip(),
-                    "coordinators":      str(row.get("coordinators")      or "").strip(),
-                    "field_of_education":str(row.get("field_of_education")or "").strip(),
+                    "code":               str(row["code"]).strip(),
+                    "title":              str(row["title"]).strip(),
+                    "summary":            summary_text or "UWA Handbook unit — open for overview and offerings.",
+                    "credit_points":      row.get("credit_points", 0),
+                    "level_of_study":     str(row.get("level_of_study")     or "").strip(),
+                    "url":                str(row.get("url")                 or "").strip(),
+                    "school":             str(row.get("school")              or "").strip(),
+                    "availability":       str(row.get("availability")        or "").strip(),
+                    "location":           str(row.get("location")            or "").strip(),
+                    "coordinators":       str(row.get("coordinators")        or "").strip(),
+                    "field_of_education": str(row.get("field_of_education")  or "").strip(),
                 }
             )
     return sorted(out, key=lambda r: r["code"])
