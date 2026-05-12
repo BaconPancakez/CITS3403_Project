@@ -1,4 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash, session
+from flask_login import login_user, logout_user, login_required, current_user
 
 from app import app, db
 from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion
@@ -13,32 +14,114 @@ def _favorite_units():
     return [u for u in UWA_UNITS if u["code"] in codes]
 
 
+# ── Public routes ─────────────────────────────────────────────────────────────
+
 @app.route("/")
 def index():
     return render_template("landing.html")
 
 
-@app.route("/home")
-def home():
-    if not session.get("is_authenticated"):
-        flash("Please log in to view courses.", "warning")
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:                           # already logged in
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+        email    = request.form.get("email",    "").strip().lower()
+        password = request.form.get("password", "")
+        remember = bool(request.form.get("remember"))           # optional "remember me" checkbox
+
+        user = User.query.filter_by(email=email).first()
+
+        if user is None or not user.check_password(password):
+            flash("Invalid email or password.", "danger")
+            return redirect(url_for("login"))
+
+        login_user(user, remember=remember)
+        flash(f"Welcome back, {user.name or user.email}!", "success")
+
+        if user.role == "admin":
+            return redirect(url_for("admin"))
+        return redirect(url_for("home"))
+
+    return render_template("login.html")
+
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+        name             = request.form.get("name",             "").strip()
+        email            = request.form.get("email",            "").strip().lower()
+        password         = request.form.get("password",         "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        # ── Validation ────────────────────────────────────────────────────────
+        if not name or not email or not password:
+            flash("All fields are required.", "danger")
+            return redirect(url_for("signup"))
+
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for("signup"))
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "danger")
+            return redirect(url_for("signup"))
+
+        if User.query.filter_by(email=email).first():
+            flash("An account with that email already exists.", "danger")
+            return redirect(url_for("signup"))
+
+        # ── Create user ───────────────────────────────────────────────────────
+        role = "admin" if email.endswith("@uwa.edu.au") and not email.endswith("@student.uwa.edu.au") else "student"
+        user = User(name=name, email=email, role=role)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        flash("Account created — please log in.", "success")
         return redirect(url_for("login"))
+
+    return render_template("signup.html")
+
+
+@app.route("/logout", methods=["POST"])
+@login_required
+def logout():
+    session.pop("favorite_course_codes", None)                  # clear session-only data
+    logout_user()
+    flash("You have been logged out.", "info")
+    return redirect(url_for("index"))
+
+
+@app.route("/forgot-password")
+def forgot_password():
+    return render_template("forgot_password.html")
+
+
+# ── Protected routes ──────────────────────────────────────────────────────────
+
+@app.route("/home")
+@login_required
+def home():
     return render_template("home.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
 
 
 @app.route("/admin")
+@login_required
 def admin():
-    if session.get("role") != "admin":
-        return redirect(url_for("login"))
+    if current_user.role != "admin":
+        flash("Admins only.", "danger")
+        return redirect(url_for("home"))
     return render_template("admin.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
 
 
 @app.route("/course")
+@login_required
 def course_list():
-    if not session.get("is_authenticated"):
-        flash("Please log in to view courses.", "warning")
-        return redirect(url_for("login"))
-
     q               = request.args.get("q",              default="", type=str).strip()
     school_filter   = request.args.get("school",         default="", type=str).strip()
     level_filter    = request.args.get("level_of_study", default="", type=str).strip()
@@ -46,7 +129,6 @@ def course_list():
 
     q_lower        = q.lower()
     favorite_codes = _favorite_codes()
-
     filtered_units = UWA_UNITS
 
     if q_lower:
@@ -63,7 +145,6 @@ def course_list():
 
     courses = [u for u in filtered_units if u["code"] not in favorite_codes]
 
-    # Dynamic options for dropdown filters (always built from full catalogue)
     schools   = sorted({u["school"] for u in UWA_UNITS if u.get("school")})
     levels    = sorted({
         lvl
@@ -94,6 +175,7 @@ def course_list():
 
 
 @app.route("/course/favorite/<course_code>", methods=["POST"])
+@login_required
 def toggle_favorite_course(course_code):
     code = course_code.strip().upper()
 
@@ -102,7 +184,6 @@ def toggle_favorite_course(course_code):
         return redirect(url_for("course_list"))
 
     favorites = _favorite_codes()
-
     if code in favorites:
         favorites.remove(code)
     else:
@@ -110,26 +191,18 @@ def toggle_favorite_course(course_code):
 
     session["favorite_course_codes"] = sorted(favorites)
 
-    q               = request.form.get("q",              default="", type=str)
-    school_filter   = request.form.get("school",         default="", type=str)
-    level_filter    = request.form.get("level_of_study", default="", type=str)
-    location_filter = request.form.get("location",       default="", type=str)
-
     return redirect(url_for(
         "course_list",
-        q=q,
-        school=school_filter,
-        level_of_study=level_filter,
-        location=location_filter,
+        q=request.form.get("q", ""),
+        school=request.form.get("school", ""),
+        level_of_study=request.form.get("level_of_study", ""),
+        location=request.form.get("location", ""),
     ))
 
 
 @app.route("/course/<course_code>", methods=["GET", "POST"])
+@login_required
 def course_detail(course_code):
-    if not session.get("is_authenticated"):
-        flash("Please log in to view courses.", "warning")
-        return redirect(url_for("login"))
-
     course = UWA_UNITS_BY_CODE.get(course_code.strip().upper())
 
     if not course:
@@ -138,22 +211,24 @@ def course_detail(course_code):
 
     if request.method == "POST":
         form_type = request.form.get("form_type")
-        user_id   = session.get("user_id")
 
         if form_type == "review":
             rating = int(request.form.get("rating", 0))
             text   = request.form.get("review_text", "").strip()
 
             if rating < 1 or rating > 5:
-                flash("Invalid rating.", "danger")
+                flash("Rating must be between 1 and 5.", "danger")
+            elif not text:
+                flash("Review text cannot be empty.", "danger")
             else:
                 db.session.add(Review(
                     course_code=course["code"],
-                    user_id=user_id,
+                    user_id=current_user.id,            # ← real user id from Flask-Login
                     rating=rating,
                     text=text,
                 ))
                 db.session.commit()
+                flash("Review submitted.", "success")
 
         elif form_type == "discussion":
             comment = request.form.get("comment", "").strip()
@@ -163,14 +238,14 @@ def course_detail(course_code):
             else:
                 db.session.add(Discussion(
                     course_code=course["code"],
-                    user_id=user_id,
+                    user_id=current_user.id,            # ← real user id from Flask-Login
                     text=comment,
                 ))
                 db.session.commit()
 
         return redirect(url_for("course_detail", course_code=course["code"]))
 
-    # ── GET ──────────────────────────────────────────────────────────────────
+    # ── GET ───────────────────────────────────────────────────────────────────
     course_reviews = (
         Review.query
         .filter_by(course_code=course["code"])
@@ -183,7 +258,6 @@ def course_detail(course_code):
         .order_by(Discussion.created_at.asc())
         .all()
     )
-
     avg_rating = (
         round(sum(r.rating for r in course_reviews) / len(course_reviews), 1)
         if course_reviews else None
@@ -198,97 +272,34 @@ def course_detail(course_code):
         favorite_units=_favorite_units(),
     )
 
+
+# ── Admin delete routes ───────────────────────────────────────────────────────
+
 @app.route("/admin/review/delete/<int:review_id>", methods=["POST"])
+@login_required
 def delete_review(review_id):
-    if session.get("role") != "admin":
-        flash("Unauthorized access.", "danger")
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
         return redirect(url_for("home"))
 
     review = Review.query.get_or_404(review_id)
     course_code = review.course_code
-
     db.session.delete(review)
     db.session.commit()
-
-    flash("Review removed successfully.", "success")
+    flash("Review removed.", "success")
     return redirect(url_for("course_detail", course_code=course_code))
 
 
 @app.route("/admin/discussion/delete/<int:discussion_id>", methods=["POST"])
+@login_required
 def delete_discussion(discussion_id):
-    if session.get("role") != "admin":
-        flash("Unauthorized access.", "danger")
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
         return redirect(url_for("home"))
 
     discussion = Discussion.query.get_or_404(discussion_id)
     course_code = discussion.course_code
-
     db.session.delete(discussion)
     db.session.commit()
-
-    flash("Discussion removed successfully.", "success")
+    flash("Discussion removed.", "success")
     return redirect(url_for("course_detail", course_code=course_code))
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        email    = request.form.get("email",    "").strip().lower()
-        password = request.form.get("password", "").strip()
-
-        if email == "admin@uwa.edu.au" and password == "1234":
-            session["is_authenticated"] = True
-            session["user"]             = email
-            session["user_id"]          = 1111111
-            session["user_name"]        = "Admin"
-            session["role"]             = "admin"
-            flash("Admin Login successful!", "success")
-            return redirect(url_for("admin"))
-        elif email.endswith("@student.uwa.edu.au") and password == "1234":
-            session["is_authenticated"] = True
-            session["user"]             = email
-            session["user_id"]          = hash(email) % 10000000
-            session["user_name"]        = email.split("@")[0]
-            session["role"]             = "student"
-            flash("Student Login successful!", "success")
-            return redirect(url_for("home"))
-        else:
-            flash("Invalid username or password.", "danger")
-            return redirect(url_for("login"))
-
-    return render_template("login.html")
-
-
-@app.route("/forgot-password")
-def forgot_password():
-    return render_template("forgot_password.html")
-
-
-@app.route("/logout", methods=["POST"])
-def logout():
-    session.pop("is_authenticated", None)
-    session.pop("user", None)
-    session.pop("user_id", None)
-    session.pop("user_name", None)
-    session.pop("role", None)
-    session.pop("favorite_course_codes", None)
-    flash("Logged out.", "info")
-    return redirect(url_for("index"))
-
-
-@app.route("/signup", methods=["GET", "POST"])
-def signup():
-    if request.method == "POST":
-        name             = request.form.get("name",             "").strip()
-        email            = request.form.get("email",            "").strip()
-        password         = request.form.get("password",         "")
-        confirm_password = request.form.get("confirm_password", "")
-
-        if password != confirm_password:
-            flash("Passwords do not match.", "danger")
-            return redirect(url_for("signup"))
-
-        flash("Signup submitted.", "success")
-        return redirect(url_for("login"))
-
-    return render_template("signup.html")
