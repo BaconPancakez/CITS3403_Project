@@ -1,8 +1,10 @@
-from flask import render_template, request, redirect, url_for, flash, session
+from io import BytesIO
+
+from flask import render_template, request, redirect, url_for, flash, session, send_file
 from flask_login import login_user, logout_user, login_required, current_user
 
 from app import app, db
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel
 
 
 def _favorite_codes():
@@ -243,6 +245,34 @@ def course_detail(course_code):
                 ))
                 db.session.commit()
 
+        elif form_type == "notes_upload":
+            title = request.form.get("notes_title", "").strip()
+            details = request.form.get("notes_details", "").strip()
+            upload = request.files.get("notes_file")
+
+            if not title:
+                flash("Please provide a title for the notes.", "danger")
+            elif not upload or not upload.filename:
+                flash("Please choose a PDF file to upload.", "danger")
+            elif not upload.filename.lower().endswith(".pdf"):
+                flash("Only PDF files are supported.", "danger")
+            else:
+                file_bytes = upload.read()
+                if not file_bytes:
+                    flash("The uploaded file is empty.", "danger")
+                else:
+                    db.session.add(fileModel(
+                        course_code=course["code"],
+                        author_id=current_user.id,
+                        title=title,
+                        details=details or None,
+                        filename=upload.filename,
+                        mimetype=upload.mimetype or "application/pdf",
+                        file=file_bytes,
+                    ))
+                    db.session.commit()
+                    flash("Notes uploaded.", "success")
+
         return redirect(url_for("course_detail", course_code=course["code"]))
 
     # ── GET ───────────────────────────────────────────────────────────────────
@@ -262,6 +292,12 @@ def course_detail(course_code):
         round(sum(r.rating for r in course_reviews) / len(course_reviews), 1)
         if course_reviews else None
     )
+    course_notes = (
+        fileModel.query
+        .filter_by(course_code=course["code"])
+        .order_by(fileModel.created_at.desc())
+        .all()
+    )
 
     return render_template(
         "coursepg.html",
@@ -269,7 +305,21 @@ def course_detail(course_code):
         reviews=course_reviews,
         discussions=course_discussions,
         avg_rating=avg_rating,
+        notes=course_notes,
         favorite_units=_favorite_units(),
+    )
+
+
+@app.route("/notes/<int:note_id>/file")
+@login_required
+def notes_file(note_id):
+    note = fileModel.query.get_or_404(note_id)
+    download_name = note.filename or f"{note.title or 'notes'}.pdf"
+    return send_file(
+        BytesIO(note.file),
+        mimetype=note.mimetype or "application/pdf",
+        download_name=download_name,
+        as_attachment=False,
     )
 
 
