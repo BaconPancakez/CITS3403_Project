@@ -4,6 +4,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion
 
+FORGOT_RESET_EMAIL = "forgot_reset_email"
+
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -92,14 +94,73 @@ def signup():
 @login_required
 def logout():
     session.pop("favorite_course_codes", None)                  # clear session-only data
+    session.pop(FORGOT_RESET_EMAIL, None)
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("index"))
 
 
-@app.route("/forgot-password")
+@app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        if not email:
+            flash("Please enter your email.", "danger")
+            return redirect(url_for("forgot_password"))
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash("We could not find an account with that email.", "danger")
+            return redirect(url_for("forgot_password"))
+
+        session[FORGOT_RESET_EMAIL] = email
+        return redirect(url_for("forgot_password_new_password"))
+
     return render_template("forgot_password.html")
+
+
+@app.route("/forgot-password/new-password", methods=["GET", "POST"])
+def forgot_password_new_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+
+    email = session.get(FORGOT_RESET_EMAIL)
+    if not email:
+        flash("Enter your email on the forgot password page first.", "warning")
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if not password or not confirm_password:
+            flash("Both password fields are required.", "danger")
+            return redirect(url_for("forgot_password_new_password"))
+
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for("forgot_password_new_password"))
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "danger")
+            return redirect(url_for("forgot_password_new_password"))
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            session.pop(FORGOT_RESET_EMAIL, None)
+            flash("Account not found.", "danger")
+            return redirect(url_for("forgot_password"))
+
+        user.set_password(password)
+        db.session.commit()
+        session.pop(FORGOT_RESET_EMAIL, None)
+        flash("Your password has been updated. You can sign in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("forgot_password_new_password.html")
 
 
 # ── Protected routes ──────────────────────────────────────────────────────────
