@@ -11,7 +11,7 @@
 {% block content %}
 <header class="hero-banner border-bottom">
     <div class="hero-overlay">
-        <h1 id="welcome_header" class="hero-title m-0"></h1>
+        <h1 id="welcome_header" class="hero-title m-0">Welcome, {{ current_user.name or 'Admin' }}!</h1>
         <p class="hero-kicker mb-3 fs-5">What are you up to today?</p>
     </div>
 </header>
