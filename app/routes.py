@@ -353,3 +353,18 @@ def delete_discussion(discussion_id):
     db.session.commit()
     flash("Discussion removed.", "success")
     return redirect(url_for("course_detail", course_code=course_code))
+
+@app.route("/admin/note/delete/<int:note_id>", methods=["POST"])
+def delete_note(note_id):
+    if session.get("role") != "admin":
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for("home"))
+
+    note = fileModel.query.get_or_404(note_id)
+    course_code = note.course_code
+
+    db.session.delete(note)
+    db.session.commit()
+
+    flash("Note removed successfully.", "success")
+    return redirect(url_for("course_detail", course_code=course_code))
