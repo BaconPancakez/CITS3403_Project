@@ -465,6 +465,9 @@ def course_detail(course_code):
     else:
         upvoted_quiz_ids = set()
 
+    quiz_total_count = len(course_quizzes)
+    quizzes_preview = course_quizzes[:5]
+
     return render_template(
         "coursepg.html",
         course=course,
@@ -472,7 +475,133 @@ def course_detail(course_code):
         discussions=course_discussions,
         avg_rating=avg_rating,
         notes=course_notes,
-        quizzes=course_quizzes,
+        quizzes_preview=quizzes_preview,
+        quiz_total_count=quiz_total_count,
+        upvoted_quiz_ids=upvoted_quiz_ids,
+        favorite_units=_favorite_units(),
+    )
+
+
+@app.route("/course/<course_code>/quizzes", methods=["GET", "POST"])
+@login_required
+def course_quizzes(course_code):
+    """Full-page quiz list; sidebar is discussion + reviews only."""
+    course = UWA_UNITS_BY_CODE.get(course_code.strip().upper())
+
+    if not course:
+        flash("Course not found.", "warning")
+        return redirect(url_for("course_list"))
+
+    if request.method == "POST":
+        form_type = request.form.get("form_type")
+
+        if form_type == "review":
+            rating = int(request.form.get("rating", 0))
+            text = request.form.get("review_text", "").strip()
+
+            if rating < 1 or rating > 5:
+                flash("Rating must be between 1 and 5.", "danger")
+            elif not text:
+                flash("Review text cannot be empty.", "danger")
+            else:
+                db.session.add(
+                    Review(
+                        course_code=course["code"],
+                        user_id=current_user.id,
+                        rating=rating,
+                        text=text,
+                    )
+                )
+                db.session.commit()
+                flash("Review submitted.", "success")
+
+        elif form_type == "discussion":
+            comment = request.form.get("comment", "").strip()
+
+            if not comment:
+                flash("Comment cannot be empty.", "danger")
+            else:
+                db.session.add(
+                    Discussion(
+                        course_code=course["code"],
+                        user_id=current_user.id,
+                        text=comment,
+                        parent_id=None,
+                    )
+                )
+                db.session.commit()
+
+        elif form_type == "discussion_reply":
+            parent_id = request.form.get("parent_id", type=int)
+            comment = request.form.get("comment", "").strip()
+            parent = Discussion.query.get_or_404(parent_id)
+            if parent.course_code != course["code"]:
+                flash("Invalid discussion thread.", "danger")
+            elif not comment:
+                flash("Reply cannot be empty.", "danger")
+            else:
+                reply = Discussion(
+                    course_code=course["code"],
+                    user_id=current_user.id,
+                    text=comment,
+                    parent_id=parent.id,
+                )
+                db.session.add(reply)
+
+                if parent.user_id and parent.user_id != current_user.id:
+                    db.session.add(
+                        Notification(
+                            user_id=parent.user_id,
+                            course_code=course["code"],
+                            message=(
+                                f"{current_user.name or current_user.email} replied to your "
+                                f"discussion in {course['code']}"
+                            ),
+                        )
+                    )
+                db.session.commit()
+
+        return redirect(url_for("course_quizzes", course_code=course["code"]))
+
+    course_reviews = (
+        Review.query.filter_by(course_code=course["code"])
+        .order_by(Review.created_at.desc())
+        .all()
+    )
+    course_discussions = (
+        Discussion.query.filter_by(course_code=course["code"], parent_id=None)
+        .order_by(Discussion.created_at.asc())
+        .all()
+    )
+    avg_rating = (
+        round(sum(r.rating for r in course_reviews) / len(course_reviews), 1)
+        if course_reviews
+        else None
+    )
+    course_quizzes_all = (
+        CourseQuiz.query.filter_by(course_code=course["code"])
+        .order_by(CourseQuiz.upvote_count.desc(), CourseQuiz.created_at.desc())
+        .all()
+    )
+    if course_quizzes_all:
+        quiz_ids = [q.id for q in course_quizzes_all]
+        upvoted_quiz_ids = {
+            row.quiz_id
+            for row in QuizUpvote.query.filter(
+                QuizUpvote.user_id == current_user.id,
+                QuizUpvote.quiz_id.in_(quiz_ids),
+            ).all()
+        }
+    else:
+        upvoted_quiz_ids = set()
+
+    return render_template(
+        "course_quizzes.html",
+        course=course,
+        reviews=course_reviews,
+        discussions=course_discussions,
+        avg_rating=avg_rating,
+        quizzes=course_quizzes_all,
         upvoted_quiz_ids=upvoted_quiz_ids,
         favorite_units=_favorite_units(),
     )

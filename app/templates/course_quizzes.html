@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.code }} — Quizzes{% endblock %}
+
+{% block page_css %}
+<style>
+.quiz-question-text { white-space: pre-wrap; }
+.quiz-all-wrap h2.h-quiz-n { font-size: 1.1rem; margin-top: 1.25rem; margin-bottom: 0.5rem; font-weight: 700; }
+.quiz-all-wrap h2.h-quiz-n:first-of-type { margin-top: 0; }
+.quiz-all-wrap .quiz-md-divider { border-top: 1px solid var(--bs-border-color); margin: 1rem 0; }
+.quiz-all-wrap .quiz-item { padding: 1rem !important; margin-bottom: 1rem !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="hero-banner border-bottom">
+    <div class="hero-overlay">
+        <h1 class="hero-title m-0">{{ course.code }}</h1>
+        <p class="hero-kicker mb-2 fs-5">{{ course.title }}</p>
+        <p class="mb-2">
+            <a href="{{ url_for('course_detail', course_code=course.code) }}" class="btn btn-outline-light btn-sm">
+                ← Back to unit overview
+            </a>
+        </p>
+        {% if course.url %}
+        <a href="{{ course.url }}" target="_blank" class="btn btn-outline-primary btn-sm mt-1">
+            View in UWA Handbook <i class="bi bi-box-arrow-up-right ms-1"></i>
+        </a>
+        {% endif %}
+    </div>
+</header>
+
+<main class="p-3 p-lg-4">
+    <div class="row g-3">
+
+        <div class="col-12 col-lg-8">
+            <div class="card mb-3">
+                <div class="card-body quiz-all-wrap">
+                    <h5 class="fw-bold mb-2">All quiz questions</h5>
+                    <p class="text-muted small mb-4">Practice questions for this unit. Submit an answer to see if you’re correct.</p>
+
+                    {% if quizzes %}
+                    {% for q in quizzes %}
+                        {% if not loop.first %}<div class="quiz-md-divider"></div>{% endif %}
+                        <h2 class="h-quiz-n">{{ loop.index }}. Question</h2>
+                        {% include "partials/course_quiz_card_single.html" %}
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted mb-0">No quizzes yet — add one from the <a href="{{ url_for('course_detail', course_code=course.code) }}">unit page</a>.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ── Right sidebar: discussion + reviews only ── #}
+        <div class="col-12 col-lg-4">
+
+            {# Discussion card #}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6>Discussion</h6>
+
+                    <div class="mb-3" style="max-height: 260px; overflow-y: auto;">
+                        {% for c in discussions %}
+                        <div class="mb-2 p-2 bg-light rounded">
+                            <p class="small mb-0">
+                                <strong>{{ c.display_name }}:</strong> {{ c.text }}
+                            </p>
+                            <p class="text-muted" style="font-size: 0.75rem;">
+                                {{ c.created_at.strftime("%d %b %Y %H:%M") }}
+                            </p>
+                            {% if current_user.role == "admin" %}
+                            <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
+                                <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
+                                    Remove Comment
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" class="mt-2">
+                                <input type="hidden" name="form_type" value="discussion_reply">
+                                <input type="hidden" name="parent_id" value="{{ c.id }}">
+
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="comment" class="form-control" placeholder="Reply..." required>
+                                    <button class="btn btn-outline-primary" type="submit">Reply</button>
+                                </div>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-muted small">No comments yet. Start the conversation!</p>
+                        {% endfor %}
+                    </div>
+
+                    <form method="POST">
+                        <input type="hidden" name="form_type" value="discussion">
+                        <div class="input-group">
+                            <input type="text" name="comment" class="form-control" placeholder="Write a comment…"
+                                required>
+                            <button class="btn btn-primary" type="submit">Post</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {# Reviews card #}
+            <div class="card">
+                <div class="card-body">
+                    <h6>Reviews</h6>
+
+                    {% if avg_rating %}
+                    <p class="fw-bold">Average Rating: {{ avg_rating }}/5</p>
+                    {% endif %}
+
+                    <form method="POST">
+                        <input type="hidden" name="form_type" value="review">
+
+                        <div class="mb-2">
+                            <select name="rating" class="form-select" required>
+                                <option value="">Select rating</option>
+                                <option value="5">★★★★★ (5)</option>
+                                <option value="4">★★★★☆ (4)</option>
+                                <option value="3">★★★☆☆ (3)</option>
+                                <option value="2">★★☆☆☆ (2)</option>
+                                <option value="1">★☆☆☆☆ (1)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <textarea name="review_text" class="form-control" placeholder="Write your review..."
+                                required></textarea>
+                        </div>
+
+                        <button class="btn btn-primary w-100">Submit Review</button>
+                    </form>
+
+                    <hr>
+
+                    {% for r in reviews %}
+                    <div class="mb-2">
+                        <div class="text-warning">
+                            {{ "★" * r.rating }}{{ "☆" * (5 - r.rating) }}
+                        </div>
+                        <p class="small text-muted mb-1">
+                            <strong>{{ r.display_name }}:</strong> {{ r.text }}
+                        </p>
+                        {% if current_user.role == "admin" %}
+                        <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}">
+                            <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
+                                Remove Review
+                            </button>
+                        </form>
+                        {% endif %}
+                        <p class="text-muted" style="font-size: 0.75rem;">
+                            {{ r.created_at.strftime("%d %b %Y") }}
+                        </p>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">No reviews yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+{% include "partials/course_quiz_scripts.html" %}
+{% endblock %}
