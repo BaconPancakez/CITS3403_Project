@@ -191,6 +191,15 @@
                                 </button>
                             </form>
                             {% endif %}
+                            <form method="POST" class="mt-2">
+                                <input type="hidden" name="form_type" value="discussion_reply">
+                                <input type="hidden" name="parent_id" value="{{ c.id }}">
+
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="comment" class="form-control" placeholder="Reply..." required>
+                                    <button class="btn btn-outline-primary" type="submit">Reply</button>
+                                </div>
+                            </form>
                         </div>
                         {% else %}
                         <p class="text-muted small">No comments yet. Start the conversation!</p>

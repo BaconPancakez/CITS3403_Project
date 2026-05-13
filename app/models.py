@@ -51,12 +51,19 @@ class Review(TimestampMixin, db.Model):
 
 
 class Discussion(TimestampMixin, db.Model):
-    id          = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     course_code = db.Column(db.String(20), nullable=False, index=True)
-    user_id     = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    text        = db.Column(db.Text, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    text = db.Column(db.Text, nullable=False)
+
+    parent_id = db.Column(db.Integer, db.ForeignKey("discussion.id"), nullable=True)
 
     user = db.relationship("User", backref=db.backref("discussions", lazy="dynamic"))
+    replies = db.relationship(
+        "Discussion",
+        backref=db.backref("parent", remote_side=[id]),
+        lazy="select"
+    )
 
     @property
     def display_name(self):

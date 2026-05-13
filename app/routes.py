@@ -254,21 +254,31 @@ def course_detail(course_code):
                     course_code=course["code"],
                     user_id=current_user.id,
                     text=comment,
+                    parent_id=None
                 ))
                 db.session.commit()
+                
+        elif form_type == "discussion_reply":
+            parent_id = request.form.get("parent_id", type=int)
+            comment = request.form.get("comment", "").strip()
+            parent = Discussion.query.get_or_404(parent_id)
+            if not comment:
+                flash("Reply cannot be empty.", "danger")
+            else:
+                reply = Discussion(
+                    course_code=course["code"],
+                    user_id=current_user.id,
+                    text=comment,
+                    parent_id=parent.id
+                )
+                db.session.add(reply)
 
-                other_user_ids = {
-                    d.user_id
-                    for d in Discussion.query.filter_by(course_code=course["code"]).all()
-                    if d.user_id and d.user_id != current_user.id
-                }
-                for user_id in other_user_ids:
+                if parent.user_id and parent.user_id != current_user.id:
                     db.session.add(Notification(
-                        user_id=user_id,
+                        user_id=parent.user_id,
                         course_code=course["code"],
-                        message=f"Someone replied to the discussion in {course['code']}"
+                        message=f"{current_user.name or current_user.email} replied to your discussion in {course['code']}"
                     ))
-
                 db.session.commit()
 
         elif form_type == "notes_upload":
@@ -310,7 +320,7 @@ def course_detail(course_code):
     )
     course_discussions = (
         Discussion.query
-        .filter_by(course_code=course["code"])
+        .filter_by(course_code=course["code"], parent_id=None)
         .order_by(Discussion.created_at.asc())
         .all()
     )
@@ -381,6 +391,7 @@ def delete_discussion(discussion_id):
     return redirect(url_for("course_detail", course_code=course_code))
 
 @app.route("/admin/note/delete/<int:note_id>", methods=["POST"])
+@login_required
 def delete_note(note_id):
     if current_user.role != "admin":
         flash("Unauthorized access.", "danger")
