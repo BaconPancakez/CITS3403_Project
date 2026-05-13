@@ -356,7 +356,7 @@ def delete_discussion(discussion_id):
 
 @app.route("/admin/note/delete/<int:note_id>", methods=["POST"])
 def delete_note(note_id):
-    if session.get("role") != "admin":
+    if current_user.role != "admin":
         flash("Unauthorized access.", "danger")
         return redirect(url_for("home"))
 
