@@ -209,7 +209,7 @@ class Notification(TimestampMixin, db.Model):
     )
     course_code = db.Column(db.String(20), nullable=False)
     message = db.Column(db.String(300), nullable=False)
-    is_read = db.Column(db.Boolean, default=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
     user = db.relationship(
         "User",
         backref=db.backref("notifications", lazy="dynamic")
