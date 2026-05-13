@@ -11,14 +11,14 @@
 {% block content %}
 <header class="hero-banner border-bottom">
     <div class="hero-overlay">
-        <h1 id="welcome_header" class="hero-title m-0"></h1>
+        <h1 id="welcome_header" class="hero-title m-0">Welcome, {{ current_user.name or 'Admin' }}!</h1>
         <p class="hero-kicker mb-3 fs-5">What are you up to today?</p>
     </div>
 </header>
 
 <main class="p-3 p-lg-4">
 
-    {# ── Tab navigation ──────────────────────────────────────────────── #}
+    {# ── Tab navigation ── #}
     <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses-panel"
@@ -35,11 +35,21 @@
                 {% endif %}
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports-panel" type="button"
+                role="tab" aria-controls="reports-panel" aria-selected="false">
+                🚩 Reports
+                {% set total_reports = (reports | length) + (quiz_reports | length) %}
+                {% if total_reports > 0 %}
+                <span class="badge bg-warning text-dark ms-1">{{ total_reports }}</span>
+                {% endif %}
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="adminTabsContent">
 
-        {# ── Tab 1 : Courses ─────────────────────────────────────────── #}
+        {# ── Tab 1: Courses ── #}
         <div class="tab-pane fade show active" id="courses-panel" role="tabpanel" aria-labelledby="courses-tab">
             <div class="assigned_container row g-3">
                 {% for course in courses %}
@@ -59,10 +69,9 @@
             </div>
         </div>
 
-        {# ── Tab 2 : Students ────────────────────────────────────────── #}
+        {# ── Tab 2: Students ── #}
         <div class="tab-pane fade" id="students-panel" role="tabpanel" aria-labelledby="students-tab">
 
-            {# Active students table #}
             <div class="d-flex align-items-center gap-2 mb-3">
                 <h4 class="mb-0">Registered Students</h4>
                 <span class="badge bg-primary">{{ students | length }}</span>
@@ -73,10 +82,10 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th scope="col">#</th>
-                            <th scope="col">Name</th>
-                            <th scope="col">Email</th>
-                            <th scope="col" class="text-end">Action</th>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -97,7 +106,7 @@
                 </table>
             </div>
 
-            {# Confirmation modals – one per student #}
+            {# Ban confirmation modals #}
             {% for student in students %}
             <div class="modal fade" id="banModal{{ student.id }}" tabindex="-1"
                 aria-labelledby="banModalLabel{{ student.id }}" aria-hidden="true">
@@ -114,8 +123,9 @@
                             <div class="modal-body">
                                 <p class="mb-2">
                                     <strong>This action is permanent.</strong>
-                                    The user will be removed and their uploaded notes deleted.
-                                    Reviews and discussions they authored will be kept anonymously.
+                                    The user will be removed and their uploaded notes and
+                                    quizzes deleted. Reviews and discussions will be kept
+                                    anonymously.
                                 </p>
                                 <div class="mb-3">
                                     <label for="reason{{ student.id }}" class="form-label">
@@ -141,7 +151,7 @@
             <p class="text-muted fst-italic">No registered students found.</p>
             {% endif %}
 
-            {# Banned users list #}
+            {# Banned users table #}
             {% if banned %}
             <hr>
             <div class="d-flex align-items-center gap-2 mb-3 mt-4">
@@ -165,10 +175,8 @@
                             <td>{{ b.name or "—" }}</td>
                             <td><code>{{ b.email }}</code></td>
                             <td>
-                                {% if b.reason %}
-                                {{ b.reason }}
-                                {% else %}
-                                <em class="text-muted">No reason given</em>
+                                {% if b.reason %}{{ b.reason }}
+                                {% else %}<em class="text-muted">No reason given</em>
                                 {% endif %}
                             </td>
                             <td class="text-muted small text-nowrap">
@@ -190,6 +198,323 @@
             {% endif %}
 
         </div>{# /students-panel #}
+
+        {# ── Tab 3: Reports ── #}
+        <div class="tab-pane fade" id="reports-panel" role="tabpanel" aria-labelledby="reports-tab">
+
+            {# ── Note Reports ── #}
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <h4 class="mb-0">Reported Notes</h4>
+                <span class="badge {% if reports %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                    {{ reports | length }}
+                </span>
+            </div>
+
+            {% if reports %}
+            <div class="table-responsive mb-5">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Note</th>
+                            <th>Course</th>
+                            <th>Author</th>
+                            <th>Reported by</th>
+                            <th>Reason</th>
+                            <th>Date</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr>
+                            <td>
+                                <span class="fw-semibold">{{ report.note.title }}</span>
+                                <div class="mt-1">
+                                    <button type="button" class="btn btn-sm btn-outline-info mt-1" data-bs-toggle="modal"
+                                        data-bs-target="#notesPreviewModal" data-note-title="{{ report.note.title }}"
+                                        data-note-details="{{ report.note.details or '' }}"
+                                        data-note-src="{{ url_for('notes_file', note_id=report.note.id) }}">
+                                        👁 View PDF
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('course_detail', course_code=report.note.course_code) }}"
+                                    class="text-decoration-none">
+                                    <code>{{ report.note.course_code }}</code>
+                                </a>
+                            </td>
+                            <td>
+                                {% if report.note.author %}
+                                {{ report.note.author.name or report.note.author.email }}
+                                {% else %}
+                                <em class="text-muted">Deleted</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if report.reporter %}
+                                {{ report.reporter.name or report.reporter.email }}
+                                {% else %}
+                                <em class="text-muted">Unknown</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if report.reason %}{{ report.reason }}
+                                {% else %}<em class="text-muted">No reason given</em>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted small text-nowrap">
+                                {{ report.created_at.strftime("%Y-%m-%d %H:%M") }}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end flex-wrap">
+
+                                    {# Dismiss this report only #}
+                                    <form method="POST" action="{{ url_for('dismiss_report', report_id=report.id) }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm"
+                                            title="Dismiss without action">
+                                            ✕ Dismiss
+                                        </button>
+                                    </form>
+
+                                    {# Remove the note (clears all its reports) #}
+                                    <form method="POST" action="{{ url_for('delete_note', note_id=report.note.id) }}"
+                                        onsubmit="return confirm('Remove note and all its reports?')">
+                                        <input type="hidden" name="_next" value="{{ url_for('admin', tab='reports') }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            title="Delete note and all related reports">
+                                            🗑 Remove Note
+                                        </button>
+                                    </form>
+
+                                    {# Ban the author #}
+                                    {% if report.note.author and report.note.author.role != 'admin' %}
+                                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#banFromNoteReportModal{{ report.id }}"
+                                        title="Ban the note's author">
+                                        🚫 Ban Author
+                                    </button>
+                                    {% endif %}
+
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# Ban-from-note-report confirmation modals #}
+            {% for report in reports %}
+            {% if report.note.author and report.note.author.role != 'admin' %}
+            <div class="modal fade" id="banFromNoteReportModal{{ report.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ url_for('ban_user', user_id=report.note.author.id) }}">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title">
+                                    Ban {{ report.note.author.name or report.note.author.email }}?
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white"
+                                    data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>
+                                    <strong>This action is permanent.</strong>
+                                    The user, their notes, and their quizzes will be removed.
+                                    Reviews and discussions will be kept anonymously.
+                                </p>
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        Reason <span class="text-muted">(optional)</span>
+                                    </label>
+                                    <textarea name="reason" class="form-control" rows="2"
+                                        placeholder="e.g. Uploaded inappropriate content"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">
+                                    Confirm Ban
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            {% else %}
+            <p class="text-muted fst-italic mb-5">No note reports to review. 🎉</p>
+            {% endif %}
+
+            {# ── Quiz Reports ── #}
+            <hr class="my-4">
+
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <h4 class="mb-0">Reported Quizzes</h4>
+                <span class="badge {% if quiz_reports %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                    {{ quiz_reports | length }}
+                </span>
+            </div>
+
+            {% if quiz_reports %}
+            <div class="table-responsive mb-4">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Question</th>
+                            <th>Course</th>
+                            <th>Author</th>
+                            <th>Reported by</th>
+                            <th>Reason</th>
+                            <th>Date</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in quiz_reports %}
+                        <tr>
+                            <td>
+                                <span class="fw-semibold small">
+                                    {{ report.quiz.question | truncate(80) }}
+                                </span>
+                                {# Expandable choices preview #}
+                                <div>
+                                    <button class="btn btn-sm btn-link p-0 text-decoration-none small" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#quizPreview{{ report.id }}">
+                                        View choices ▾
+                                    </button>
+                                </div>
+                                <div class="collapse" id="quizPreview{{ report.id }}">
+                                    <ul class="list-unstyled small mt-1 mb-0 ps-2 border-start">
+                                        {% for choice in report.quiz.choices %}
+                                        <li
+                                            class="{% if loop.index0 == report.quiz.correct_index %}text-success fw-bold{% endif %}">
+                                            {{ loop.index }}. {{ choice }}
+                                            {% if loop.index0 == report.quiz.correct_index %}
+                                            <span class="badge bg-success ms-1">Correct</span>
+                                            {% endif %}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('course_detail', course_code=report.quiz.course_code) }}"
+                                    class="text-decoration-none">
+                                    <code>{{ report.quiz.course_code }}</code>
+                                </a>
+                            </td>
+                            <td>
+                                {% if report.quiz.author %}
+                                {{ report.quiz.author.name or report.quiz.author.email }}
+                                {% else %}
+                                <em class="text-muted">Deleted</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if report.reporter %}
+                                {{ report.reporter.name or report.reporter.email }}
+                                {% else %}
+                                <em class="text-muted">Unknown</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if report.reason %}{{ report.reason }}
+                                {% else %}<em class="text-muted">No reason given</em>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted small text-nowrap">
+                                {{ report.created_at.strftime("%Y-%m-%d %H:%M") }}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end flex-wrap">
+
+                                    {# Dismiss this report only #}
+                                    <form method="POST"
+                                        action="{{ url_for('dismiss_quiz_report', report_id=report.id) }}">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm"
+                                            title="Dismiss without action">
+                                            ✕ Dismiss
+                                        </button>
+                                    </form>
+
+                                    {# Remove the quiz (clears all its reports) #}
+                                    <form method="POST" action="{{ url_for('delete_quiz', quiz_id=report.quiz.id) }}"
+                                        onsubmit="return confirm('Remove quiz and all its reports?')">
+                                        <input type="hidden" name="_next" value="{{ url_for('admin', tab='reports') }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"
+                                            title="Delete quiz and all related reports">
+                                            🗑 Remove Quiz
+                                        </button>
+                                    </form>
+
+                                    {# Ban the author #}
+                                    {% if report.quiz.author and report.quiz.author.role != 'admin' %}
+                                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#banFromQuizReportModal{{ report.id }}"
+                                        title="Ban the quiz author">
+                                        🚫 Ban Author
+                                    </button>
+                                    {% endif %}
+
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# Ban-from-quiz-report confirmation modals #}
+            {% for report in quiz_reports %}
+            {% if report.quiz.author and report.quiz.author.role != 'admin' %}
+            <div class="modal fade" id="banFromQuizReportModal{{ report.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ url_for('ban_user', user_id=report.quiz.author.id) }}">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title">
+                                    Ban {{ report.quiz.author.name or report.quiz.author.email }}?
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white"
+                                    data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>
+                                    <strong>This action is permanent.</strong>
+                                    The user, their notes, and their quizzes will be removed.
+                                    Reviews and discussions will be kept anonymously.
+                                </p>
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        Reason <span class="text-muted">(optional)</span>
+                                    </label>
+                                    <textarea name="reason" class="form-control" rows="2"
+                                        placeholder="e.g. Uploaded inappropriate quiz content"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">
+                                    Confirm Ban
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            {% else %}
+            <p class="text-muted fst-italic">No quiz reports to review. 🎉</p>
+            {% endif %}
+
+        </div>{# /reports-panel #}
+
     </div>{# /tab-content #}
 
     <div class="complaint_container container-fluid"></div>
@@ -199,16 +524,37 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 <script>
-    // Restore the active tab from the URL query string (?tab=students)
+    // Restore active tab from ?tab= query param
     (function () {
-        const params = new URLSearchParams(window.location.search);
-        const tab = params.get("tab");
+        const tab = new URLSearchParams(window.location.search).get("tab");
         if (tab) {
             const trigger = document.querySelector(`#${CSS.escape(tab)}-tab`);
-            if (trigger) {
-                bootstrap.Tab.getOrCreateInstance(trigger).show();
-            }
+            if (trigger) bootstrap.Tab.getOrCreateInstance(trigger).show();
         }
     })();
+
+    // Notes preview modal — populate iframe from data attributes
+    (function () {
+        const modal = document.getElementById("notesPreviewModal");
+        if (!modal) return;
+
+        modal.addEventListener("show.bs.modal", function (event) {
+            const btn = event.relatedTarget;
+            if (!btn) return;
+            const src = btn.getAttribute("data-note-src") || "";
+            const title = btn.getAttribute("data-note-title") || "Notes";
+            document.getElementById("notesPreviewFrame").src = src;
+            document.getElementById("notesPreviewModalLabel").textContent = title;
+        });
+
+        // Clear iframe when modal closes so the PDF doesn't keep loading in background
+        modal.addEventListener("hide.bs.modal", function () {
+            document.getElementById("notesPreviewFrame").src = "";
+        });
+    })();
 </script>
+{% endblock %}
+
+{% block modals %}
+{% include "partials/notes_modal.html" %}
 {% endblock %}

@@ -4,11 +4,30 @@
 
 {% block page_css %}
 <style>
-.quiz-question-text { white-space: pre-wrap; }
-.quiz-all-wrap h2.h-quiz-n { font-size: 1.1rem; margin-top: 1.25rem; margin-bottom: 0.5rem; font-weight: 700; }
-.quiz-all-wrap h2.h-quiz-n:first-of-type { margin-top: 0; }
-.quiz-all-wrap .quiz-md-divider { border-top: 1px solid var(--bs-border-color); margin: 1rem 0; }
-.quiz-all-wrap .quiz-item { padding: 1rem !important; margin-bottom: 1rem !important; }
+    .quiz-question-text {
+        white-space: pre-wrap;
+    }
+
+    .quiz-all-wrap h2.h-quiz-n {
+        font-size: 1.1rem;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+
+    .quiz-all-wrap h2.h-quiz-n:first-of-type {
+        margin-top: 0;
+    }
+
+    .quiz-all-wrap .quiz-md-divider {
+        border-top: 1px solid var(--bs-border-color);
+        margin: 1rem 0;
+    }
+
+    .quiz-all-wrap .quiz-item {
+        padding: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
 </style>
 {% endblock %}
 
@@ -33,26 +52,53 @@
 <main class="p-3 p-lg-4">
     <div class="row g-3">
 
+        {# ── Left column: all quizzes ── #}
         <div class="col-12 col-lg-8">
             <div class="card mb-3">
                 <div class="card-body quiz-all-wrap">
                     <h5 class="fw-bold mb-2">All quiz questions</h5>
-                    <p class="text-muted small mb-4">Practice questions for this unit. Submit an answer to see if you’re correct.</p>
+                    <p class="text-muted small mb-4">
+                        Practice questions for this unit. Submit an answer to see if you're correct.
+                    </p>
 
                     {% if quizzes %}
                     {% for q in quizzes %}
-                        {% if not loop.first %}<div class="quiz-md-divider"></div>{% endif %}
-                        <h2 class="h-quiz-n">{{ loop.index }}. Question</h2>
-                        {% include "partials/course_quiz_card_single.html" %}
+                    {% if not loop.first %}
+                    <div class="quiz-md-divider"></div>
+                    {% endif %}
+
+                    <h2 class="h-quiz-n">{{ loop.index }}. Question</h2>
+                    {% include "partials/course_quiz_card_single.html" %}
+
+                    {# Report + admin controls #}
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <button type="button" class="btn btn-sm btn-link text-warning p-0 text-decoration-none"
+                            data-bs-toggle="modal" data-bs-target="#reportQuizModal{{ q.id }}">
+                            ⚑ Report this question
+                        </button>
+                        {% if current_user.role == "admin" %}
+                        <form method="POST" action="{{ url_for('delete_quiz', quiz_id=q.id) }}" class="d-inline">
+                            <input type="hidden" name="_next"
+                                value="{{ url_for('course_quizzes', course_code=course.code) }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Remove this quiz question?')">
+                                Remove Quiz
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
                     {% endfor %}
                     {% else %}
-                    <p class="text-muted mb-0">No quizzes yet — add one from the <a href="{{ url_for('course_detail', course_code=course.code) }}">unit page</a>.</p>
+                    <p class="text-muted mb-0">
+                        No quizzes yet — add one from the
+                        <a href="{{ url_for('course_detail', course_code=course.code) }}">unit page</a>.
+                    </p>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        {# ── Right sidebar: discussion + reviews only ── #}
+        {# ── Right sidebar: discussion + reviews ── #}
         <div class="col-12 col-lg-4">
 
             {# Discussion card #}
@@ -69,6 +115,20 @@
                             <p class="text-muted" style="font-size: 0.75rem;">
                                 {{ c.created_at.strftime("%d %b %Y %H:%M") }}
                             </p>
+                            {% if c.replies %}
+                            <div class="mt-2">
+                                {% for r in c.replies | sort(attribute='created_at') %}
+                                <div class="ms-3 ps-2 border-start">
+                                    <p class="small mb-0">
+                                        <strong>{{ r.display_name }}:</strong> {{ r.text }}
+                                    </p>
+                                    <p class="text-muted" style="font-size: 0.7rem;">
+                                        {{ r.created_at.strftime("%d %b %Y %H:%M") }}
+                                    </p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                             {% if current_user.role == "admin" %}
                             <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
                                 <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
@@ -79,10 +139,12 @@
                             <form method="POST" class="mt-2">
                                 <input type="hidden" name="form_type" value="discussion_reply">
                                 <input type="hidden" name="parent_id" value="{{ c.id }}">
-
                                 <div class="input-group input-group-sm">
-                                    <input type="text" name="comment" class="form-control" placeholder="Reply..." required>
-                                    <button class="btn btn-outline-primary" type="submit">Reply</button>
+                                    <input type="text" name="comment" class="form-control" placeholder="Reply…"
+                                        required>
+                                    <button class="btn btn-outline-primary" type="submit">
+                                        Reply
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -113,7 +175,6 @@
 
                     <form method="POST">
                         <input type="hidden" name="form_type" value="review">
-
                         <div class="mb-2">
                             <select name="rating" class="form-select" required>
                                 <option value="">Select rating</option>
@@ -124,12 +185,10 @@
                                 <option value="1">★☆☆☆☆ (1)</option>
                             </select>
                         </div>
-
                         <div class="mb-2">
-                            <textarea name="review_text" class="form-control" placeholder="Write your review..."
+                            <textarea name="review_text" class="form-control" placeholder="Write your review…"
                                 required></textarea>
                         </div>
-
                         <button class="btn btn-primary w-100">Submit Review</button>
                     </form>
 
@@ -160,11 +219,50 @@
                 </div>
             </div>
 
-        </div>
+        </div>{# end col-lg-4 #}
     </div>
 </main>
 {% endblock %}
 
+{% block modals %}
+{# ── Quiz report modals — one per quiz ── #}
+{% for q in quizzes %}
+<div class="modal fade" id="reportQuizModal{{ q.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('report_quiz', course_code=course.code, quiz_id=q.id) }}">
+                <input type="hidden" name="_next" value="{{ url_for('course_quizzes', course_code=course.code) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report Quiz Question</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Reports are reviewed by admins. Only report content that violates
+                        community guidelines.
+                    </p>
+                    <p class="small fw-semibold mb-3">
+                        "{{ q.question | truncate(120) }}"
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Reason <span class="text-muted">(optional)</span>
+                        </label>
+                        <textarea name="reason" class="form-control" rows="2"
+                            placeholder="e.g. Wrong answer marked, inappropriate content…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
 {% block scripts %}
-{% include "partials/course_quiz_scripts.html" %}
+    {% include "partials/course_quiz_scripts.html" %}
 {% endblock %}

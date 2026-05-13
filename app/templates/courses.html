@@ -59,7 +59,7 @@
                 <tbody id="favorite-units-body">
                     {% for course in favorite_units %}
                     <tr data-search="{{ (course.code ~ ' ' ~ course.title)|lower }}">
-                        <td style="width: 120px; border-right: 1px solid #f0f0f0;" class="text-center bg-light">
+                        <td style="width: 120px; border-right: 1px solid var(--line);" class="text-decoration-none fw-semibold text-dark">
                             <code class="small fw-bold fs-6 text-dark">{{ course.code }}</code>
                         </td>
                         <td class="py-3 px-4">
@@ -112,7 +112,7 @@
             <tbody id="all-units-body">
                 {% for course in courses %}
                 <tr data-search="{{ (course.code ~ ' ' ~ course.title)|lower }}">
-                    <td style="width: 120px; border-right: 1px solid #f0f0f0;" class="text-center bg-light">
+                    <td style="width: 120px; border-right: 1px solid var(--line);" class="text-decoration-none fw-semibold text-dark">
                         <code class="small fw-bold fs-6 text-dark">{{ course.code }}</code>
                     </td>
                     <td class="py-3 px-4">
