@@ -38,14 +38,14 @@
                         type="button"
                         data-bs-toggle="collapse"
                         data-bs-target="#favoriteCoursesDropdown"
-                        aria-expanded="{% if request.endpoint == 'course_detail' %}true{% else %}false{% endif %}"
+                        aria-expanded="{% if request.endpoint == 'course_detail' or request.endpoint == 'course_quizzes' %}true{% else %}false{% endif %}"
                         aria-controls="favoriteCoursesDropdown"
                     >
                         <span>Favourited Courses</span>
                         <span>▾</span>
                     </button>
                     <div
-                        class="collapse {% if request.endpoint == 'course_detail' %}show{% endif %}"
+                        class="collapse {% if request.endpoint == 'course_detail' or request.endpoint == 'course_quizzes' %}show{% endif %}"
                         id="favoriteCoursesDropdown"
                     >
                         <div class="d-flex flex-column gap-2 mt-2">
@@ -53,7 +53,7 @@
                             {% for unit in favorite_units[:5] %}
                                 <a
                                     href="{{ url_for('course_detail', course_code=unit.code) }}"
-                                    class="nav-link small{% if request.endpoint == 'course_detail' and course and course.code == unit.code %} active{% endif %}"
+                                    class="nav-link small{% if (request.endpoint == 'course_detail' or request.endpoint == 'course_quizzes') and course and course.code == unit.code %} active{% endif %}"
                                 >
                                     {{ unit.code }}
                                 </a>
