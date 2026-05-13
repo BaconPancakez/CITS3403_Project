@@ -157,6 +157,14 @@ body.signup-page .sidebar {
     padding: 1.4rem 1.4rem;
 }
 
+/* for the button in hero-overlay */
+a.directbtn.btn.btn-outline-primary.btn-sm.mt-1{
+    --bs-btn-color: #efefef;
+    --bs-btn-border-color: #efefef;
+    font-weight:500;
+}
+
+
 .hero-kicker {
     color: #fde68a;
     letter-spacing: 0.12em;
