@@ -1,10 +1,21 @@
 from io import BytesIO
 
-from flask import render_template, request, redirect, url_for, flash, session, send_file
+from flask import (
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    session,
+    send_file,
+    jsonify,
+)
 from flask_login import login_user, logout_user, login_required, current_user
 
+from sqlalchemy.exc import IntegrityError
+
 from app import app, db
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, BannedUser
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, BannedUser, CourseQuiz, QuizUpvote
 
 
 def _favorite_codes():
@@ -341,6 +352,41 @@ def course_detail(course_code):
                     db.session.commit()
                     flash("Notes uploaded.", "success")
 
+        elif form_type == "quiz_create":
+            question = request.form.get("quiz_question", "").strip()
+            raw_choices = [
+                request.form.get(f"quiz_choice_{i}", "").strip() for i in range(6)
+            ]
+            raw_correct = request.form.get("quiz_correct_row")
+            try:
+                correct_row = int(raw_correct) if raw_correct not in (None, "") else -1
+            except ValueError:
+                correct_row = -1
+
+            filled_idx = [i for i, t in enumerate(raw_choices) if t]
+            if not question:
+                flash("Quiz question cannot be empty.", "danger")
+            elif len(filled_idx) < 2:
+                flash("Add at least two answer options.", "danger")
+            elif raw_correct in (None, ""):
+                flash("You must select a correct answer.", "danger")
+            elif correct_row not in filled_idx:
+                flash("Mark the correct answer on a row that has text.", "danger")
+            else:
+                choices = [raw_choices[i] for i in filled_idx]
+                correct_index = filled_idx.index(correct_row)
+                db.session.add(
+                    CourseQuiz(
+                        course_code=course["code"],
+                        author_id=current_user.id,
+                        question=question,
+                        choices=choices,
+                        correct_index=correct_index,
+                    )
+                )
+                db.session.commit()
+                flash("Quiz added.", "success")
+
         return redirect(url_for("course_detail", course_code=course["code"]))
 
     # ── GET ───────────────────────────────────────────────────────────────────
@@ -366,6 +412,22 @@ def course_detail(course_code):
         .order_by(fileModel.created_at.desc())
         .all()
     )
+    course_quizzes = (
+        CourseQuiz.query.filter_by(course_code=course["code"])
+        .order_by(CourseQuiz.upvote_count.desc(), CourseQuiz.created_at.desc())
+        .all()
+    )
+    if course_quizzes:
+        quiz_ids = [q.id for q in course_quizzes]
+        upvoted_quiz_ids = {
+            row.quiz_id
+            for row in QuizUpvote.query.filter(
+                QuizUpvote.user_id == current_user.id,
+                QuizUpvote.quiz_id.in_(quiz_ids),
+            ).all()
+        }
+    else:
+        upvoted_quiz_ids = set()
 
     return render_template(
         "coursepg.html",
@@ -374,8 +436,85 @@ def course_detail(course_code):
         discussions=course_discussions,
         avg_rating=avg_rating,
         notes=course_notes,
+        quizzes=course_quizzes,
+        upvoted_quiz_ids=upvoted_quiz_ids,
         favorite_units=_favorite_units(),
     )
+
+
+@app.route("/course/<course_code>/quiz/<int:quiz_id>/answer", methods=["POST"])
+@login_required
+def quiz_answer_json(course_code, quiz_id):
+    """Return whether the selected option is correct (no page reload from JS)."""
+    course = UWA_UNITS_BY_CODE.get(course_code.strip().upper())
+    if not course:
+        return jsonify({"ok": False, "error": "course_not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        selected = int(data.get("selected_index", -1))
+    except (TypeError, ValueError):
+        selected = -1
+
+    quiz = CourseQuiz.query.filter_by(
+        id=quiz_id, course_code=course["code"]
+    ).first()
+    if not quiz:
+        return jsonify({"ok": False, "error": "quiz_not_found"}), 404
+    if selected < 0 or selected >= len(quiz.choices):
+        return jsonify({"ok": False, "error": "invalid_choice"}), 400
+
+    correct = selected == quiz.correct_index
+    return jsonify({"ok": True, "correct": correct})
+
+
+@app.route("/course/<course_code>/quiz/<int:quiz_id>/upvote", methods=["POST"])
+@login_required
+def quiz_upvote_json(course_code, quiz_id):
+    course = UWA_UNITS_BY_CODE.get(course_code.strip().upper())
+    if not course:
+        return jsonify({"ok": False, "error": "course_not_found"}), 404
+
+    quiz = CourseQuiz.query.filter_by(
+        id=quiz_id, course_code=course["code"]
+    ).first()
+    if not quiz:
+        return jsonify({"ok": False, "error": "quiz_not_found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    if data.get("remove"):
+        row = QuizUpvote.query.filter_by(
+            user_id=current_user.id, quiz_id=quiz_id
+        ).first()
+        if row:
+            db.session.delete(row)
+            quiz.upvote_count = max(0, (quiz.upvote_count or 0) - 1)
+            db.session.commit()
+        return jsonify(
+            {"ok": True, "count": quiz.upvote_count, "upvoted": False}
+        )
+
+    if QuizUpvote.query.filter_by(user_id=current_user.id, quiz_id=quiz_id).first():
+        return jsonify(
+            {"ok": True, "count": quiz.upvote_count, "upvoted": True}
+        )
+
+    db.session.add(QuizUpvote(user_id=current_user.id, quiz_id=quiz_id))
+    quiz.upvote_count = (quiz.upvote_count or 0) + 1
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        quiz = CourseQuiz.query.get(quiz_id)
+        return jsonify(
+            {
+                "ok": True,
+                "count": quiz.upvote_count if quiz else 0,
+                "upvoted": True,
+            }
+        )
+
+    return jsonify({"ok": True, "count": quiz.upvote_count, "upvoted": True})
 
 
 @app.route("/notes/<int:note_id>/file")
