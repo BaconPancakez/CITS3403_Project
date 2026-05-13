@@ -63,6 +63,14 @@ class Discussion(TimestampMixin, db.Model):
         return self.user.name if self.user else "Anonymous"
 
 
+class BannedUser(TimestampMixin, db.Model):
+    __tablename__ = "banned_user"
+    id     = db.Column(db.Integer, primary_key=True)
+    email  = db.Column(db.String(255), unique=True, nullable=False)
+    name   = db.Column(db.String(120), nullable=True)
+    reason = db.Column(db.Text,        nullable=True)
+    # created_at inherited from TimestampMixin → serves as "banned_at"
+
 # ── To Store PDF ──────────────────────────────────────────────────────────
 
 class fileModel(TimestampMixin, db.Model):
