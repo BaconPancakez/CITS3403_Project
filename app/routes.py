@@ -15,8 +15,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError
 
 from app import app, db
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, BannedUser, CourseQuiz,
-    QuizUpvote
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, BannedUser, CourseQuiz, QuizUpvote
 
 
 def _favorite_codes():
