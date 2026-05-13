@@ -4,7 +4,7 @@ from flask import render_template, request, redirect, url_for, flash, session, s
 from flask_login import login_user, logout_user, login_required, current_user
 
 from app import app, db
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, Notification
 
 
 def _favorite_codes():
@@ -109,7 +109,19 @@ def forgot_password():
 @app.route("/home")
 @login_required
 def home():
-    return render_template("home.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
+    latest_notes = (
+        fileModel.query
+        .order_by(fileModel.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    notifications = (
+    Notification.query
+        .filter_by(user_id=current_user.id, is_read=False)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+    return render_template("home.html", courses=FEATURED_COURSES, favorite_units=_favorite_units(), latest_notes=latest_notes, notifications=notifications[0:5])
 
 
 @app.route("/admin")
@@ -240,9 +252,23 @@ def course_detail(course_code):
             else:
                 db.session.add(Discussion(
                     course_code=course["code"],
-                    user_id=current_user.id,            # ← real user id from Flask-Login
+                    user_id=current_user.id,
                     text=comment,
                 ))
+                db.session.commit()
+
+                other_user_ids = {
+                    d.user_id
+                    for d in Discussion.query.filter_by(course_code=course["code"]).all()
+                    if d.user_id and d.user_id != current_user.id
+                }
+                for user_id in other_user_ids:
+                    db.session.add(Notification(
+                        user_id=user_id,
+                        course_code=course["code"],
+                        message=f"Someone replied to the discussion in {course['code']}"
+                    ))
+
                 db.session.commit()
 
         elif form_type == "notes_upload":

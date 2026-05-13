@@ -151,3 +151,19 @@ if not UWA_UNITS:
     UWA_UNITS = sorted([dict(row) for row in FEATURED_COURSES], key=lambda r: r["code"])
 
 UWA_UNITS_BY_CODE = {u["code"].upper(): u for u in UWA_UNITS}
+
+class Notification(TimestampMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        index=True
+    )
+    course_code = db.Column(db.String(20), nullable=False)
+    message = db.Column(db.String(300), nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    user = db.relationship(
+        "User",
+        backref=db.backref("notifications", lazy="dynamic")
+    )
