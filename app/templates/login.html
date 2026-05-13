@@ -14,17 +14,6 @@
 
     <main class="p-3 p-lg-4">
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category in ['success','danger','warning','info'] else 'secondary' }} mb-3"
-                         role="alert">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
         <div class="row g-3">
 
             <!-- Form card -->
