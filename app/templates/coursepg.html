@@ -26,9 +26,7 @@
                 <div class="card-body">
                     <h5 class="fw-bold mb-3">About this Unit</h5>
                     <p class="card-text text-muted">{{ course.summary }}</p>
-
                     <hr>
-
                     <div class="row g-3">
                         <div class="col-sm-6">
                             <h6 class="text-muted text-uppercase small fw-bold mb-1">School</h6>
@@ -62,22 +60,83 @@
                 </div>
             </div>
 
-            {# Notes cards #}
-            {% for note in notes %}
-            <div class="card mb-3 text-start" role="button" tabindex="0" data-bs-toggle="modal"
-                data-bs-target="#notesPreviewModal" aria-label="Open notes preview"
-                data-note-title="{{ note.title }}"
-                data-note-details="{{ note.details or '' }}"
-                data-note-src="{{ url_for('notes_file', note_id=note.id) }}">
-                <div class="card-body">
-                    <h5 class="card-title">{{ note.title }}</h5>
-                    <p class="text-muted">Uploaded by {{ note.display_name }}</p>
+            {# ── Sort controls ── #}
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="text-muted small fw-semibold">Sort notes by:</span>
+                <a href="{{ url_for('course_detail', course_code=course.code, sort='date') }}"
+                    class="btn btn-sm {% if sort == 'date' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    📅 Newest
+                </a>
+                <a href="{{ url_for('course_detail', course_code=course.code, sort='votes') }}"
+                    class="btn btn-sm {% if sort == 'votes' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    ⭐ Top Rated
+                </a>
+            </div>
 
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button class="btn btn-sm btn-outline-success" type="button">Upvote</button>
-                        <button class="btn btn-sm btn-outline-danger" type="button">Downvote</button>
-                        <button class="btn btn-sm btn-outline-warning" type="button">Report</button>
+            {# ── Notes cards ── #}
+            {% for note in notes %}
+            <div class="card mb-3">
+                <div class="card-body">
+
+                    {# Title row + score badge #}
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h5 class="card-title mb-1">{{ note.title }}</h5>
+                            <p class="text-muted small mb-0">
+                                Uploaded by {{ note.display_name }}
+                                &middot; {{ note.created_at.strftime("%d %b %Y") }}
+                            </p>
+                        </div>
+                        <span class="badge ms-2 fs-6
+                            {% if note.vote_score > 0 %}bg-success
+                            {% elif note.vote_score < 0 %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ note.vote_score }}
+                        </span>
                     </div>
+
+                    {# Action buttons #}
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+
+                        {# Preview – opens modal without conflicting with form buttons #}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                            data-bs-target="#notesPreviewModal" data-note-title="{{ note.title }}"
+                            data-note-details="{{ note.details or '' }}"
+                            data-note-src="{{ url_for('notes_file', note_id=note.id) }}">
+                            👁 Preview
+                        </button>
+
+                        {# Upvote #}
+                        <form method="POST" action="{{ url_for('vote_note', note_id=note.id) }}" class="d-inline">
+                            <input type="hidden" name="value" value="1">
+                            <input type="hidden" name="sort" value="{{ sort }}">
+                            <button type="submit" class="btn btn-sm
+                                        {% if user_votes.get(note.id) == 1 %}btn-success
+                                        {% else %}btn-outline-success{% endif %}">
+                                ▲ {{ note.upvotes }}
+                            </button>
+                        </form>
+
+                        {# Downvote #}
+                        <form method="POST" action="{{ url_for('vote_note', note_id=note.id) }}" class="d-inline">
+                            <input type="hidden" name="value" value="-1">
+                            <input type="hidden" name="sort" value="{{ sort }}">
+                            <button type="submit" class="btn btn-sm
+                                        {% if user_votes.get(note.id) == -1 %}btn-danger
+                                        {% else %}btn-outline-danger{% endif %}">
+                                ▼ {{ note.downvotes }}
+                            </button>
+                        </form>
+
+                        {# Report #}
+                        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
+                            data-bs-target="#reportModal{{ note.id }}">
+                            ⚑ Report
+                        </button>
+
+                    </div>{# /action buttons #}
+
+                    {# Admin remove #}
                     {% if current_user.role == "admin" %}
                     <form method="post" action="{{ url_for('delete_note', note_id=note.id) }}" class="mt-2">
                         <button class="btn btn-sm btn-outline-danger" type="submit">
@@ -85,6 +144,7 @@
                         </button>
                     </form>
                     {% endif %}
+
                 </div>
             </div>
             {% else %}
@@ -105,8 +165,8 @@
                 <div class="card-body">
                     <h6>Upload Notes</h6>
                     <p class="small text-muted mb-2">Share your materials with other students.</p>
-                    <button class="btn btn-primary w-100" data-bs-toggle="modal"
-                        data-bs-target="#uploadNotesModal" type="button">
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#uploadNotesModal"
+                        type="button">
                         Upload
                     </button>
                 </div>
@@ -123,7 +183,6 @@
 
                     <form method="POST">
                         <input type="hidden" name="form_type" value="review">
-
                         <div class="mb-2">
                             <select name="rating" class="form-select" required>
                                 <option value="">Select rating</option>
@@ -134,12 +193,10 @@
                                 <option value="1">★☆☆☆☆ (1)</option>
                             </select>
                         </div>
-
                         <div class="mb-2">
-                            <textarea name="review_text" class="form-control" placeholder="Write your review..."
+                            <textarea name="review_text" class="form-control" placeholder="Write your review…"
                                 required></textarea>
                         </div>
-
                         <button class="btn btn-primary w-100">Submit Review</button>
                     </form>
 
@@ -174,7 +231,6 @@
             <div class="card">
                 <div class="card-body">
                     <h6>Discussion</h6>
-
                     <div class="mb-3" style="max-height: 260px; overflow-y: auto;">
                         {% for c in discussions %}
                         <div class="mb-2 p-2 bg-light rounded">
@@ -216,6 +272,43 @@
 {% block modals %}
 {% include "partials/notes_modal.html" %}
 {% include "partials/upload_notes_modal.html" %}
+
+{# ── Report modals — one per note ── #}
+{% for note in notes %}
+<div class="modal fade" id="reportModal{{ note.id }}" tabindex="-1" aria-labelledby="reportModalLabel{{ note.id }}"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('report_note', note_id=note.id) }}">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportModalLabel{{ note.id }}">
+                        Report: {{ note.title }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Reports are reviewed by admins. Please only report content that
+                        violates community guidelines.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Reason <span class="text-muted">(optional)</span>
+                        </label>
+                        <textarea name="reason" class="form-control" rows="3"
+                            placeholder="e.g. Inappropriate content, wrong course, spam…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
 
 {% block scripts %}

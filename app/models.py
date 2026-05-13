@@ -74,21 +74,56 @@ class BannedUser(TimestampMixin, db.Model):
 # ── To Store PDF ──────────────────────────────────────────────────────────
 
 class fileModel(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    __tablename__ = "file_model"          # ← add this line explicitly
+    id          = db.Column(db.Integer, primary_key=True)
     course_code = db.Column(db.String(20), nullable=False, index=True)
-    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    title = db.Column(db.String(255), nullable=False)
-    details = db.Column(db.Text, nullable=True)
-    filename = db.Column(db.String(255), nullable=True)
-    mimetype = db.Column(db.String(100), nullable=True)
-    # https://www.sqlite.org/appfileformat.html
-    file = db.Column(db.BLOB, nullable=False)
+    author_id   = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title       = db.Column(db.String(255), nullable=False)
+    details     = db.Column(db.Text, nullable=True)
+    filename    = db.Column(db.String(255), nullable=True)
+    mimetype    = db.Column(db.String(100), nullable=True)
+    file        = db.Column(db.BLOB, nullable=False)
 
     author = db.relationship("User", backref=db.backref("notes", lazy="dynamic"))
 
     @property
     def display_name(self):
         return self.author.name if self.author else "Anonymous"
+
+    # ── Vote helpers (backed by NoteVote backref set up below) ───────────────
+    @property
+    def upvotes(self):
+        return self.votes.filter_by(value=1).count()
+
+    @property
+    def downvotes(self):
+        return self.votes.filter_by(value=-1).count()
+
+    @property
+    def vote_score(self):
+        return self.upvotes - self.downvotes
+    
+class NoteVote(db.Model):
+    __tablename__ = "note_vote"
+    id      = db.Column(db.Integer, primary_key=True)
+    note_id = db.Column(db.Integer, db.ForeignKey("file_model.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id",       ondelete="CASCADE"), nullable=False)
+    value   = db.Column(db.SmallInteger, nullable=False)  # +1 or -1
+    __table_args__ = (db.UniqueConstraint("note_id", "user_id", name="uq_note_vote"),)
+
+    note = db.relationship("fileModel", backref=db.backref("votes",      lazy="dynamic"))
+    user = db.relationship("User",      backref=db.backref("note_votes", lazy="dynamic"))
+
+
+class NoteReport(TimestampMixin, db.Model):
+    __tablename__ = "note_report"
+    id          = db.Column(db.Integer, primary_key=True)
+    note_id     = db.Column(db.Integer, db.ForeignKey("file_model.id", ondelete="CASCADE"), nullable=False)
+    reporter_id = db.Column(db.Integer, db.ForeignKey("user.id",       ondelete="SET NULL"), nullable=True)
+    reason      = db.Column(db.Text, nullable=True)
+
+    note     = db.relationship("fileModel", backref=db.backref("reports", lazy="dynamic"))
+    reporter = db.relationship("User",      backref=db.backref("reports_filed", lazy="dynamic"))
 
 # ── Course catalogue ──────────────────────────────────────────────────────────
 

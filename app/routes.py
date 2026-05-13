@@ -4,7 +4,11 @@ from flask import render_template, request, redirect, url_for, flash, session, s
 from flask_login import login_user, logout_user, login_required, current_user
 
 from app import app, db
-from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, BannedUser
+from app.models import (
+    FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE,
+    User, Review, Discussion, fileModel,
+    BannedUser, NoteVote, NoteReport,
+)
 
 
 def _favorite_codes():
@@ -126,6 +130,7 @@ def admin():
 
     students = User.query.filter_by(role="student").order_by(User.name).all()
     banned   = BannedUser.query.order_by(BannedUser.created_at.desc()).all()
+    reports  = NoteReport.query.order_by(NoteReport.created_at.desc()).all()
 
     return render_template(
         "admin.html",
@@ -133,6 +138,7 @@ def admin():
         favorite_units=_favorite_units(),
         students=students,
         banned=banned,
+        reports=reports,
     )
 
 
@@ -151,18 +157,16 @@ def ban_user(user_id):
 
     reason = request.form.get("reason", "").strip() or None
 
-    # Add to ban list (skip if already present)
     if not BannedUser.query.filter_by(email=user.email).first():
         db.session.add(BannedUser(email=user.email, name=user.name, reason=reason))
 
-    # Nullify nullable FK references so history is preserved
     for review in user.reviews.all():
         review.user_id = None
     for discussion in user.discussions.all():
         discussion.user_id = None
-
-    # Notes have non-nullable author_id → must be deleted
     for note in user.notes.all():
+        NoteVote.query.filter_by(note_id=note.id).delete()
+        NoteReport.query.filter_by(note_id=note.id).delete()
         db.session.delete(note)
 
     display = user.name or user.email
@@ -243,6 +247,61 @@ def course_list():
         locations=locations,
     )
 
+@app.route("/notes/<int:note_id>/vote", methods=["POST"])
+@login_required
+def vote_note(note_id):
+    note  = fileModel.query.get_or_404(note_id)
+    value = request.form.get("value", type=int)
+
+    if value not in (1, -1):
+        flash("Invalid vote.", "danger")
+        return redirect(url_for("course_detail", course_code=note.course_code))
+
+    existing = NoteVote.query.filter_by(note_id=note_id, user_id=current_user.id).first()
+    if existing:
+        if existing.value == value:
+            db.session.delete(existing)          # toggle off
+        else:
+            existing.value = value               # flip direction
+    else:
+        db.session.add(NoteVote(note_id=note_id, user_id=current_user.id, value=value))
+
+    db.session.commit()
+    sort = request.form.get("sort", "date")
+    return redirect(url_for("course_detail", course_code=note.course_code, sort=sort))
+
+
+@app.route("/notes/<int:note_id>/report", methods=["POST"])
+@login_required
+def report_note(note_id):
+    note   = fileModel.query.get_or_404(note_id)
+    reason = request.form.get("reason", "").strip() or None
+
+    if NoteReport.query.filter_by(note_id=note_id, reporter_id=current_user.id).first():
+        flash("You have already reported this note.", "warning")
+    else:
+        db.session.add(NoteReport(
+            note_id=note_id, reporter_id=current_user.id, reason=reason
+        ))
+        db.session.commit()
+        flash("Note reported. An admin will review it.", "info")
+
+    sort = request.form.get("sort", "date")
+    return redirect(url_for("course_detail", course_code=note.course_code, sort=sort))
+
+
+@app.route("/admin/report/dismiss/<int:report_id>", methods=["POST"])
+@login_required
+def dismiss_report(report_id):
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    report = NoteReport.query.get_or_404(report_id)
+    db.session.delete(report)
+    db.session.commit()
+    flash("Report dismissed.", "success")
+    return redirect(url_for("admin", tab="reports"))
 
 @app.route("/course/favorite/<course_code>", methods=["POST"])
 @login_required
@@ -343,7 +402,47 @@ def course_detail(course_code):
 
         return redirect(url_for("course_detail", course_code=course["code"]))
 
-    # ── GET ───────────────────────────────────────────────────────────────────
+# ── GET ───────────────────────────────────────────────────────────────────
+    sort = request.args.get("sort", "date")
+
+    if sort == "votes":
+        vote_sq = (
+            db.session.query(
+                NoteVote.note_id,
+                db.func.coalesce(db.func.sum(NoteVote.value), 0).label("score"),
+            )
+            .group_by(NoteVote.note_id)
+            .subquery()
+        )
+        course_notes = (
+            db.session.query(fileModel)
+            .filter(fileModel.course_code == course["code"])
+            .outerjoin(vote_sq, fileModel.id == vote_sq.c.note_id)
+            .order_by(
+                db.func.coalesce(vote_sq.c.score, 0).desc(),
+                fileModel.created_at.desc(),
+            )
+            .all()
+        )
+    else:
+        course_notes = (
+            fileModel.query
+            .filter_by(course_code=course["code"])
+            .order_by(fileModel.created_at.desc())
+            .all()
+        )
+
+    # current user's existing votes so the template can highlight active buttons
+    user_votes = {}
+    if course_notes:
+        user_votes = {
+            v.note_id: v.value
+            for v in NoteVote.query.filter(
+                NoteVote.note_id.in_([n.id for n in course_notes]),
+                NoteVote.user_id == current_user.id,
+            ).all()
+        }
+
     course_reviews = (
         Review.query
         .filter_by(course_code=course["code"])
@@ -360,12 +459,6 @@ def course_detail(course_code):
         round(sum(r.rating for r in course_reviews) / len(course_reviews), 1)
         if course_reviews else None
     )
-    course_notes = (
-        fileModel.query
-        .filter_by(course_code=course["code"])
-        .order_by(fileModel.created_at.desc())
-        .all()
-    )
 
     return render_template(
         "coursepg.html",
@@ -375,6 +468,8 @@ def course_detail(course_code):
         avg_rating=avg_rating,
         notes=course_notes,
         favorite_units=_favorite_units(),
+        sort=sort,
+        user_votes=user_votes,
     )
 
 
@@ -423,6 +518,7 @@ def delete_discussion(discussion_id):
     return redirect(url_for("course_detail", course_code=course_code))
 
 @app.route("/admin/note/delete/<int:note_id>", methods=["POST"])
+@login_required
 def delete_note(note_id):
     if current_user.role != "admin":
         flash("Unauthorized access.", "danger")
@@ -431,8 +527,13 @@ def delete_note(note_id):
     note = fileModel.query.get_or_404(note_id)
     course_code = note.course_code
 
+    # Remove votes and reports first to avoid FK issues on SQLite
+    NoteVote.query.filter_by(note_id=note.id).delete()
+    NoteReport.query.filter_by(note_id=note.id).delete()
     db.session.delete(note)
     db.session.commit()
 
     flash("Note removed successfully.", "success")
-    return redirect(url_for("course_detail", course_code=course_code))
+
+    next_url = request.form.get("_next") or url_for("course_detail", course_code=course_code)
+    return redirect(next_url)
