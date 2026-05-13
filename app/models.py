@@ -63,6 +63,14 @@ class Discussion(TimestampMixin, db.Model):
         return self.user.name if self.user else "Anonymous"
 
 
+class BannedUser(TimestampMixin, db.Model):
+    __tablename__ = "banned_user"
+    id     = db.Column(db.Integer, primary_key=True)
+    email  = db.Column(db.String(255), unique=True, nullable=False)
+    name   = db.Column(db.String(120), nullable=True)
+    reason = db.Column(db.Text,        nullable=True)
+    # created_at inherited from TimestampMixin → serves as "banned_at"
+
 # ── To Store PDF ──────────────────────────────────────────────────────────
 
 class fileModel(TimestampMixin, db.Model):
@@ -81,6 +89,38 @@ class fileModel(TimestampMixin, db.Model):
     @property
     def display_name(self):
         return self.author.name if self.author else "Anonymous"
+
+
+class CourseQuiz(TimestampMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    course_code = db.Column(db.String(20), nullable=False, index=True)
+    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    question = db.Column(db.Text, nullable=False)
+    choices = db.Column(db.JSON, nullable=False)
+    correct_index = db.Column(db.Integer, nullable=False)
+    upvote_count = db.Column(db.Integer, nullable=False, default=0)
+
+    author = db.relationship("User", backref=db.backref("course_quizzes", lazy="dynamic"))
+
+    @property
+    def display_name(self):
+        return self.author.name if self.author else "Anonymous"
+
+
+class QuizUpvote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    quiz_id = db.Column(
+        db.Integer, db.ForeignKey("course_quiz.id", ondelete="CASCADE"), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "quiz_id", name="uq_quiz_upvote_user_quiz"),
+    )
+
+    user = db.relationship("User", backref=db.backref("quiz_upvotes", lazy="dynamic"))
+    quiz = db.relationship("CourseQuiz", backref=db.backref("upvote_rows", lazy="dynamic"))
+
 
 # ── Course catalogue ──────────────────────────────────────────────────────────
 
