@@ -23,6 +23,30 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
+    function validatePasswordLength(form) {
+        const passwordInput = form.querySelector('[data-password="true"]');
+        const confirmInput = form.querySelector('[data-confirm-password="true"]');
+        if (!passwordInput || !confirmInput) {
+            return true;
+        }
+
+        const value = passwordInput.value;
+        if (value.length === 0) {
+            passwordInput.setCustomValidity("");
+            return true;
+        }
+
+        if (value.length < 8) {
+            passwordInput.setCustomValidity(
+                "Password must be at least 8 characters."
+            );
+            return false;
+        }
+
+        passwordInput.setCustomValidity("");
+        return true;
+    }
+
     function validatePasswordMatch(form) {
         const passwordInput = form.querySelector('[data-password="true"]');
         const confirmInput = form.querySelector('[data-confirm-password="true"]');
@@ -55,17 +79,36 @@ document.addEventListener("DOMContentLoaded", () => {
         const confirmInput = form.querySelector('[data-confirm-password="true"]');
 
         if (passwordInput && confirmInput) {
-            passwordInput.addEventListener("input", () => validatePasswordMatch(form));
-            confirmInput.addEventListener("input", () => validatePasswordMatch(form));
-            confirmInput.addEventListener("blur", () => validatePasswordMatch(form));
+            passwordInput.addEventListener("input", () => {
+                validatePasswordLength(form);
+                validatePasswordMatch(form);
+            });
+            passwordInput.addEventListener("blur", () => {
+                validatePasswordLength(form);
+                validatePasswordMatch(form);
+            });
+            confirmInput.addEventListener("input", () => {
+                validatePasswordLength(form);
+                validatePasswordMatch(form);
+            });
+            confirmInput.addEventListener("blur", () => {
+                validatePasswordLength(form);
+                validatePasswordMatch(form);
+            });
         }
 
         form.addEventListener("submit", (event) => {
             const emailInput = form.querySelector('[data-uwa-email="true"]');
             const emailValid = emailInput ? validateUwaEmail(emailInput) : true;
-            const passwordValid = validatePasswordMatch(form);
+            const passwordLengthValid = validatePasswordLength(form);
+            const passwordMatchValid = validatePasswordMatch(form);
 
-            if (!emailValid || !passwordValid || !form.checkValidity()) {
+            if (
+                !emailValid ||
+                !passwordLengthValid ||
+                !passwordMatchValid ||
+                !form.checkValidity()
+            ) {
                 event.preventDefault();
                 form.reportValidity();
             }
