@@ -1,0 +1,33 @@
+{# expects: q, course, upvoted_quiz_ids #}
+<div class="border rounded p-2 mb-2 bg-light bg-opacity-50 quiz-item quiz-card-compact" data-quiz-id="{{ q.id }}">
+    <div class="quiz-question-text fw-semibold mb-2">{{ q.question }}</div>
+    <p class="text-muted mb-3 small">By {{ q.display_name }} · {{ q.created_at.strftime("%d %b %Y") }}</p>
+
+    <form class="quiz-answer-form" method="post"
+        data-answer-url="{{ url_for('quiz_answer_json', course_code=course.code, quiz_id=q.id) }}">
+        {% for opt in q.choices %}
+        <div class="form-check mb-1">
+            <input class="form-check-input" type="radio" name="selected_index"
+                id="quiz-{{ q.id }}-opt-{{ loop.index0 }}" value="{{ loop.index0 }}"
+                {% if loop.first %}required{% endif %}>
+            <label class="form-check-label small" for="quiz-{{ q.id }}-opt-{{ loop.index0 }}">{{ opt }}</label>
+        </div>
+        {% endfor %}
+        <p class="quiz-feedback small mt-2 mb-0 d-none" data-quiz-feedback="{{ q.id }}" aria-live="polite"></p>
+        <button class="btn btn-sm btn-outline-primary w-100 mt-2" type="submit">Submit answer</button>
+    </form>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+        <button type="button"
+            class="btn btn-sm quiz-upvote-btn {% if q.id in upvoted_quiz_ids %}btn-outline-danger{% else %}btn-outline-secondary{% endif %}"
+            data-upvote-url="{{ url_for('quiz_upvote_json', course_code=course.code, quiz_id=q.id) }}"
+            data-upvoted="{{ 'true' if q.id in upvoted_quiz_ids else 'false' }}"
+            aria-pressed="{{ 'true' if q.id in upvoted_quiz_ids else 'false' }}">
+            {% if q.id in upvoted_quiz_ids %}Remove upvote{% else %}Upvote{% endif %}
+        </button>
+        <span class="small text-muted">
+            <span class="quiz-upvote-count">{{ q.upvote_count or 0 }}</span>
+            <span class="quiz-upvote-label"> upvote{% if (q.upvote_count or 0) != 1 %}s{% endif %}</span>
+        </span>
+    </div>
+</div>

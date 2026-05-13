@@ -1,34 +1,32 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from flask_login import UserMixin                                # ← fix 1: import UserMixin
+from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from app import db, login                                       # ← fix 2: import login manager
+from app import db, login
 
 
-# ── Mixin ────────────────────────────────────────────────────────────────────
+# ── Mixin ─────────────────────────────────────────────────────────────────────
 
 class TimestampMixin:
-    created_at = db.Column(
-        db.DateTime, default=datetime.utcnow, nullable=False
-    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
-# ── Core models ──────────────────────────────────────────────────────────────
+# ── Core models ───────────────────────────────────────────────────────────────
 
 class User(UserMixin, db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     email         = db.Column(db.String(255), unique=True, nullable=False)
     name          = db.Column(db.String(120), nullable=True)
     role          = db.Column(db.String(20),  nullable=True)
-    password_hash = db.Column(db.String(256), nullable=True)    # ← wider column for modern hash formats
+    password_hash = db.Column(db.String(256), nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password) # ← fix 3: pass password arg
+        return check_password_hash(self.password_hash, password)
 
 
 @login.user_loader
@@ -51,18 +49,17 @@ class Review(TimestampMixin, db.Model):
 
 
 class Discussion(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id          = db.Column(db.Integer, primary_key=True)
     course_code = db.Column(db.String(20), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    text = db.Column(db.Text, nullable=False)
+    user_id     = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    text        = db.Column(db.Text, nullable=False)
+    parent_id   = db.Column(db.Integer, db.ForeignKey("discussion.id"), nullable=True)
 
-    parent_id = db.Column(db.Integer, db.ForeignKey("discussion.id"), nullable=True)
-
-    user = db.relationship("User", backref=db.backref("discussions", lazy="dynamic"))
+    user    = db.relationship("User", backref=db.backref("discussions", lazy="dynamic"))
     replies = db.relationship(
         "Discussion",
         backref=db.backref("parent", remote_side=[id]),
-        lazy="select"
+        lazy="select",
     )
 
     @property
@@ -76,20 +73,20 @@ class BannedUser(TimestampMixin, db.Model):
     email  = db.Column(db.String(255), unique=True, nullable=False)
     name   = db.Column(db.String(120), nullable=True)
     reason = db.Column(db.Text,        nullable=True)
-    # created_at inherited from TimestampMixin → serves as "banned_at"
 
-# ── To Store PDF ──────────────────────────────────────────────────────────
+
+# ── Notes / file models ───────────────────────────────────────────────────────
 
 class fileModel(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    course_code = db.Column(db.String(20), nullable=False, index=True)
-    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    title = db.Column(db.String(255), nullable=False)
-    details = db.Column(db.Text, nullable=True)
-    filename = db.Column(db.String(255), nullable=True)
-    mimetype = db.Column(db.String(100), nullable=True)
-    # https://www.sqlite.org/appfileformat.html
-    file = db.Column(db.BLOB, nullable=False)
+    __tablename__ = "file_model"
+    id          = db.Column(db.Integer, primary_key=True)
+    course_code = db.Column(db.String(20),  nullable=False, index=True)
+    author_id   = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title       = db.Column(db.String(255), nullable=False)
+    details     = db.Column(db.Text,        nullable=True)
+    filename    = db.Column(db.String(255), nullable=True)
+    mimetype    = db.Column(db.String(100), nullable=True)
+    file        = db.Column(db.BLOB,        nullable=False)
 
     author = db.relationship("User", backref=db.backref("notes", lazy="dynamic"))
 
@@ -97,15 +94,64 @@ class fileModel(TimestampMixin, db.Model):
     def display_name(self):
         return self.author.name if self.author else "Anonymous"
 
+    # ── Vote helpers (backed by NoteVote.votes backref) ───────────────────────
+    @property
+    def upvotes(self):
+        return self.votes.filter_by(value=1).count()
+
+    @property
+    def downvotes(self):
+        return self.votes.filter_by(value=-1).count()
+
+    @property
+    def vote_score(self):
+        return self.upvotes - self.downvotes
+
+
+class NoteVote(db.Model):
+    __tablename__ = "note_vote"
+    id      = db.Column(db.Integer, primary_key=True)
+    note_id = db.Column(
+        db.Integer, db.ForeignKey("file_model.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    value   = db.Column(db.SmallInteger, nullable=False)          # +1 or -1
+
+    __table_args__ = (
+        db.UniqueConstraint("note_id", "user_id", name="uq_note_vote"),
+    )
+
+    note = db.relationship("fileModel", backref=db.backref("votes",      lazy="dynamic"))
+    user = db.relationship("User",      backref=db.backref("note_votes", lazy="dynamic"))
+
+
+class NoteReport(TimestampMixin, db.Model):
+    __tablename__ = "note_report"
+    id          = db.Column(db.Integer, primary_key=True)
+    note_id     = db.Column(
+        db.Integer, db.ForeignKey("file_model.id", ondelete="CASCADE"), nullable=False
+    )
+    reporter_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )
+    reason = db.Column(db.Text, nullable=True)
+
+    note     = db.relationship("fileModel", backref=db.backref("reports",       lazy="dynamic"))
+    reporter = db.relationship("User",      backref=db.backref("reports_filed", lazy="dynamic"))
+
+
+# ── Quiz models ───────────────────────────────────────────────────────────────
 
 class CourseQuiz(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    course_code = db.Column(db.String(20), nullable=False, index=True)
-    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    question = db.Column(db.Text, nullable=False)
-    choices = db.Column(db.JSON, nullable=False)
+    id            = db.Column(db.Integer, primary_key=True)
+    course_code   = db.Column(db.String(20), nullable=False, index=True)
+    author_id     = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    question      = db.Column(db.Text,    nullable=False)
+    choices       = db.Column(db.JSON,    nullable=False)
     correct_index = db.Column(db.Integer, nullable=False)
-    upvote_count = db.Column(db.Integer, nullable=False, default=0)
+    upvote_count  = db.Column(db.Integer, nullable=False, default=0)
 
     author = db.relationship("User", backref=db.backref("course_quizzes", lazy="dynamic"))
 
@@ -115,7 +161,7 @@ class CourseQuiz(TimestampMixin, db.Model):
 
 
 class QuizUpvote(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id      = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     quiz_id = db.Column(
         db.Integer, db.ForeignKey("course_quiz.id", ondelete="CASCADE"), nullable=False
@@ -125,8 +171,34 @@ class QuizUpvote(db.Model):
         db.UniqueConstraint("user_id", "quiz_id", name="uq_quiz_upvote_user_quiz"),
     )
 
-    user = db.relationship("User", backref=db.backref("quiz_upvotes", lazy="dynamic"))
+    user = db.relationship("User",      backref=db.backref("quiz_upvotes", lazy="dynamic"))
     quiz = db.relationship("CourseQuiz", backref=db.backref("upvote_rows", lazy="dynamic"))
+
+
+class QuizReport(TimestampMixin, db.Model):
+    __tablename__ = "quiz_report"
+    id          = db.Column(db.Integer, primary_key=True)
+    quiz_id     = db.Column(
+        db.Integer, db.ForeignKey("course_quiz.id", ondelete="CASCADE"), nullable=False
+    )
+    reporter_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )
+    reason = db.Column(db.Text, nullable=True)
+
+    quiz     = db.relationship("CourseQuiz", backref=db.backref("quiz_reports", lazy="dynamic"))
+    reporter = db.relationship("User",       backref=db.backref("quiz_reports_filed", lazy="dynamic"))
+
+
+# ── Notification ──────────────────────────────────────────────────────────────
+
+class Notification(TimestampMixin, db.Model):
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    course_code = db.Column(db.String(20),  nullable=False)
+    message     = db.Column(db.String(300), nullable=False)
+    is_read     = db.Column(db.Boolean, default=False, nullable=False)
+    user        = db.relationship("User", backref=db.backref("notifications", lazy="dynamic"))
 
 
 # ── Course catalogue ──────────────────────────────────────────────────────────
@@ -174,7 +246,6 @@ def _load_uwa_units():
             summary_text = str(raw_desc).strip()
             if summary_text.lower() == "nan":
                 summary_text = ""
-
             out.append(
                 {
                     "code":               str(row["code"]).strip(),
@@ -198,19 +269,3 @@ if not UWA_UNITS:
     UWA_UNITS = sorted([dict(row) for row in FEATURED_COURSES], key=lambda r: r["code"])
 
 UWA_UNITS_BY_CODE = {u["code"].upper(): u for u in UWA_UNITS}
-
-class Notification(TimestampMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer,
-        db.ForeignKey("user.id"),
-        nullable=False,
-        index=True
-    )
-    course_code = db.Column(db.String(20), nullable=False)
-    message = db.Column(db.String(300), nullable=False)
-    is_read = db.Column(db.Boolean, default=False, nullable=False)
-    user = db.relationship(
-        "User",
-        backref=db.backref("notifications", lazy="dynamic")
-    )

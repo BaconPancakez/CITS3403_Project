@@ -26,9 +26,7 @@
                 <div class="card-body">
                     <h5 class="fw-bold mb-3">About this Unit</h5>
                     <p class="card-text text-muted">{{ course.summary }}</p>
-
                     <hr>
-
                     <div class="row g-3">
                         <div class="col-sm-6">
                             <h6 class="text-muted text-uppercase small fw-bold mb-1">School</h6>
@@ -62,22 +60,81 @@
                 </div>
             </div>
 
+            {# Sort controls #}
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="text-muted small fw-semibold">Sort notes by:</span>
+                <a href="{{ url_for('course_detail', course_code=course.code, sort='date') }}"
+                    class="btn btn-sm {% if sort == 'date' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    📅 Newest
+                </a>
+                <a href="{{ url_for('course_detail', course_code=course.code, sort='votes') }}"
+                    class="btn btn-sm {% if sort == 'votes' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    ⭐ Top Rated
+                </a>
+            </div>
+
             {# Notes cards #}
             {% for note in notes %}
-            <div class="card mb-3 text-start" role="button" tabindex="0" data-bs-toggle="modal"
-                data-bs-target="#notesPreviewModal" aria-label="Open notes preview"
-                data-note-title="{{ note.title }}"
-                data-note-details="{{ note.details or '' }}"
-                data-note-src="{{ url_for('notes_file', note_id=note.id) }}">
+            <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">{{ note.title }}</h5>
-                    <p class="text-muted">Uploaded by {{ note.display_name }}</p>
 
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button class="btn btn-sm btn-outline-success" type="button">Upvote</button>
-                        <button class="btn btn-sm btn-outline-danger" type="button">Downvote</button>
-                        <button class="btn btn-sm btn-outline-warning" type="button">Report</button>
+                    {# Title + score badge #}
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h5 class="card-title mb-1">{{ note.title }}</h5>
+                            <p class="text-muted small mb-0">
+                                Uploaded by {{ note.display_name }}
+                                &middot; {{ note.created_at.strftime("%d %b %Y") }}
+                            </p>
+                        </div>
+                        <span class="badge ms-2 fs-6
+                            {% if note.vote_score > 0 %}bg-success
+                            {% elif note.vote_score < 0 %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ note.vote_score }}
+                        </span>
                     </div>
+
+                    {# Action buttons #}
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+
+                        {# Preview #}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                            data-bs-target="#notesPreviewModal" data-note-title="{{ note.title }}"
+                            data-note-details="{{ note.details or '' }}"
+                            data-note-src="{{ url_for('notes_file', note_id=note.id) }}">
+                            👁 Preview
+                        </button>
+
+                        {# Upvote #}
+                        <form method="POST" action="{{ url_for('vote_note', note_id=note.id) }}" class="d-inline">
+                            <input type="hidden" name="value" value="1">
+                            <input type="hidden" name="sort" value="{{ sort }}">
+                            <button type="submit"
+                                class="btn btn-sm {% if user_votes.get(note.id) == 1 %}btn-success{% else %}btn-outline-success{% endif %}">
+                                ▲ {{ note.upvotes }}
+                            </button>
+                        </form>
+
+                        {# Downvote #}
+                        <form method="POST" action="{{ url_for('vote_note', note_id=note.id) }}" class="d-inline">
+                            <input type="hidden" name="value" value="-1">
+                            <input type="hidden" name="sort" value="{{ sort }}">
+                            <button type="submit"
+                                class="btn btn-sm {% if user_votes.get(note.id) == -1 %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                                ▼ {{ note.downvotes }}
+                            </button>
+                        </form>
+
+                        {# Report #}
+                        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
+                            data-bs-target="#reportNoteModal{{ note.id }}">
+                            ⚑ Report
+                        </button>
+
+                    </div>
+
+                    {# Admin remove #}
                     {% if current_user.role == "admin" %}
                     <form method="post" action="{{ url_for('delete_note', note_id=note.id) }}" class="mt-2">
                         <button class="btn btn-sm btn-outline-danger" type="submit">
@@ -85,6 +142,7 @@
                         </button>
                     </form>
                     {% endif %}
+
                 </div>
             </div>
             {% else %}
@@ -105,14 +163,14 @@
                 <div class="card-body">
                     <h6>Upload Notes</h6>
                     <p class="small text-muted mb-2">Share your materials with other students.</p>
-                    <button class="btn btn-primary w-100" data-bs-toggle="modal"
-                        data-bs-target="#uploadNotesModal" type="button">
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#uploadNotesModal"
+                        type="button">
                         Upload
                     </button>
                 </div>
             </div>
 
-            {# Quizzes #}
+            {# Quizzes card #}
             <div class="card mb-3">
                 <div class="card-body">
                     <h6>Add quiz</h6>
@@ -127,70 +185,70 @@
                                 rows="2" placeholder="What is…?" required></textarea>
                         </div>
 
-                        <p class="small text-muted mb-1">Up to six answers (at least two required). Select the correct one.</p>
+                        <p class="small text-muted mb-1">
+                            Up to six answers (at least two required). Select the correct one.
+                        </p>
                         {% for i in range(6) %}
                         <div class="input-group input-group-sm mb-1">
                             <div class="input-group-text">
                                 <input class="form-check-input mt-0" type="radio" name="quiz_correct_row"
-                                    value="{{ i }}" aria-label="Mark answer {{ i + 1 }} as correct"
-                                    {% if loop.first %}required{% endif %}>
+                                    value="{{ i }}" aria-label="Mark answer {{ i + 1 }} as correct" {% if loop.first
+                                    %}required{% endif %}>
                             </div>
                             <input type="text" class="form-control" name="quiz_choice_{{ i }}"
                                 placeholder="Answer {{ i + 1 }}" {% if i < 2 %}required{% endif %}>
                         </div>
                         {% endfor %}
 
-                        <button class="btn btn-primary w-100 mt-2" type="submit">Publish quiz</button>
+                        <button class="btn btn-primary w-100 mt-2" type="submit">
+                            Publish quiz
+                        </button>
                     </form>
 
                     <hr class="my-3">
 
-                    <h6 class="small fw-bold text-uppercase text-muted mb-2">Quizzes on this unit</h6>
-                    {% for q in quizzes %}
-                    <div class="border rounded p-2 mb-2 bg-light bg-opacity-50 quiz-item" data-quiz-id="{{ q.id }}">
-                        <p class="small fw-semibold mb-1">{{ q.question }}</p>
-                        <p class="text-muted mb-2" style="font-size: 0.7rem;">By {{ q.display_name }} · {{
-                            q.created_at.strftime("%d %b %Y") }}</p>
+                    <h6 class="small fw-bold text-uppercase text-muted mb-2">
+                        Quizzes on this unit
+                    </h6>
 
-                        <form class="quiz-answer-form" method="post"
-                            data-answer-url="{{ url_for('quiz_answer_json', course_code=course.code, quiz_id=q.id) }}">
-                            {% for opt in q.choices %}
-                            <div class="form-check mb-1">
-                                <input class="form-check-input" type="radio" name="selected_index"
-                                    id="quiz-{{ q.id }}-opt-{{ loop.index0 }}" value="{{ loop.index0 }}"
-                                    {% if loop.first %}required{% endif %}>
-                                <label class="form-check-label small" for="quiz-{{ q.id }}-opt-{{ loop.index0 }}">{{
-                                    opt }}</label>
-                            </div>
-                            {% endfor %}
-                            <p class="quiz-feedback small mt-1 mb-0 d-none" data-quiz-feedback="{{ q.id }}"
-                                aria-live="polite"></p>
-                            <button class="btn btn-sm btn-outline-primary w-100 mt-2" type="submit">Submit
-                                answer</button>
-                        </form>
-
-                        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                            <button type="button"
-                                class="btn btn-sm quiz-upvote-btn {% if q.id in upvoted_quiz_ids %}btn-outline-danger{% else %}btn-outline-secondary{% endif %}"
-                                data-upvote-url="{{ url_for('quiz_upvote_json', course_code=course.code, quiz_id=q.id) }}"
-                                data-upvoted="{{ 'true' if q.id in upvoted_quiz_ids else 'false' }}"
-                                aria-pressed="{{ 'true' if q.id in upvoted_quiz_ids else 'false' }}">
-                                {% if q.id in upvoted_quiz_ids %}Remove upvote{% else %}Upvote{% endif %}
+                    {% for q in quizzes_preview %}
+                    <div class="mb-2">
+                        {% include "partials/course_quiz_card_single.html" %}
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <button type="button" class="btn btn-sm btn-link text-warning p-0 text-decoration-none"
+                                data-bs-toggle="modal" data-bs-target="#reportQuizModal{{ q.id }}">
+                                ⚑ Report
                             </button>
-                            <span class="small text-muted">
-                                <span class="quiz-upvote-count">{{ q.upvote_count or 0 }}</span>
-                                <span class="quiz-upvote-label"> upvote{% if (q.upvote_count or 0) != 1 %}s{% endif %}</span>
-                            </span>
+                            {% if current_user.role == "admin" %}
+                            <form method="POST" action="{{ url_for('delete_quiz', quiz_id=q.id) }}" class="d-inline">
+                                <input type="hidden" name="_next"
+                                    value="{{ url_for('course_detail', course_code=course.code) }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    Remove
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                     {% else %}
-                    <p class="text-muted small mb-0">No quizzes yet — add the first one above.</p>
+                    <p class="text-muted small mb-0">
+                        No quizzes yet — add the first one above.
+                    </p>
                     {% endfor %}
+
+                    {% if quiz_total_count > 5 %}
+                    <div class="mt-2 pt-2 border-top">
+                        <a href="{{ url_for('course_quizzes', course_code=course.code) }}" class="small fw-semibold">
+                            View all {{ quiz_total_count }} quiz questions →
+                        </a>
+                    </div>
+                    {% endif %}
+
                 </div>
             </div>
 
             {# Reviews card #}
-            <div class="card">
+            <div class="card mb-3">
                 <div class="card-body">
                     <h6>Reviews</h6>
 
@@ -200,7 +258,6 @@
 
                     <form method="POST">
                         <input type="hidden" name="form_type" value="review">
-
                         <div class="mb-2">
                             <select name="rating" class="form-select" required>
                                 <option value="">Select rating</option>
@@ -211,12 +268,10 @@
                                 <option value="1">★☆☆☆☆ (1)</option>
                             </select>
                         </div>
-
                         <div class="mb-2">
-                            <textarea name="review_text" class="form-control" placeholder="Write your review..."
+                            <textarea name="review_text" class="form-control" placeholder="Write your review…"
                                 required></textarea>
                         </div>
-
                         <button class="btn btn-primary w-100">Submit Review</button>
                     </form>
 
@@ -261,6 +316,22 @@
                             <p class="text-muted" style="font-size: 0.75rem;">
                                 {{ c.created_at.strftime("%d %b %Y %H:%M") }}
                             </p>
+
+                            {% if c.replies %}
+                            <div class="mt-2">
+                                {% for r in c.replies | sort(attribute='created_at') %}
+                                <div class="ms-3 ps-2 border-start">
+                                    <p class="small mb-0">
+                                        <strong>{{ r.display_name }}:</strong> {{ r.text }}
+                                    </p>
+                                    <p class="text-muted" style="font-size: 0.7rem;">
+                                        {{ r.created_at.strftime("%d %b %Y %H:%M") }}
+                                    </p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
                             {% if current_user.role == "admin" %}
                             <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
                                 <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
@@ -268,13 +339,16 @@
                                 </button>
                             </form>
                             {% endif %}
+
                             <form method="POST" class="mt-2">
                                 <input type="hidden" name="form_type" value="discussion_reply">
                                 <input type="hidden" name="parent_id" value="{{ c.id }}">
-
                                 <div class="input-group input-group-sm">
-                                    <input type="text" name="comment" class="form-control" placeholder="Reply..." required>
-                                    <button class="btn btn-outline-primary" type="submit">Reply</button>
+                                    <input type="text" name="comment" class="form-control" placeholder="Reply…"
+                                        required>
+                                    <button class="btn btn-outline-primary" type="submit">
+                                        Reply
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -302,123 +376,79 @@
 {% block modals %}
 {% include "partials/notes_modal.html" %}
 {% include "partials/upload_notes_modal.html" %}
+
+{# ── Note report modals — one per note ── #}
+{% for note in notes %}
+<div class="modal fade" id="reportNoteModal{{ note.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('report_note', note_id=note.id) }}">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report Note: {{ note.title }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Reports are reviewed by admins. Only report content that violates
+                        community guidelines.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Reason <span class="text-muted">(optional)</span>
+                        </label>
+                        <textarea name="reason" class="form-control" rows="3"
+                            placeholder="e.g. Incorrect content, wrong course, spam…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{# ── Quiz report modals — one per preview quiz ── #}
+{% for q in quizzes_preview %}
+<div class="modal fade" id="reportQuizModal{{ q.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('report_quiz', course_code=course.code, quiz_id=q.id) }}">
+                <input type="hidden" name="_next" value="{{ url_for('course_detail', course_code=course.code) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report Quiz</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Reports are reviewed by admins. Only report content that violates
+                        community guidelines.
+                    </p>
+                    <p class="small fw-semibold mb-3">
+                        "{{ q.question | truncate(120) }}"
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Reason <span class="text-muted">(optional)</span>
+                        </label>
+                        <textarea name="reason" class="form-control" rows="2"
+                            placeholder="e.g. Wrong answer marked, inappropriate content…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/style.js') }}"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".quiz-answer-form").forEach(function (form) {
-        var url = form.getAttribute("data-answer-url");
-        if (!url) return;
-
-        var feedback = form.querySelector(".quiz-feedback");
-        var radios = form.querySelectorAll('input[name="selected_index"]');
-
-        form.addEventListener("submit", function (e) {
-            e.preventDefault();
-            if (!feedback) return;
-
-            var checked = form.querySelector('input[name="selected_index"]:checked');
-            if (!checked) {
-                feedback.textContent = "Select an answer.";
-                feedback.classList.remove("d-none", "text-success", "text-danger");
-                feedback.classList.add("text-muted");
-                return;
-            }
-
-            var selected = parseInt(checked.value, 10);
-            fetch(url, {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-                body: JSON.stringify({ selected_index: selected }),
-            })
-                .then(function (res) {
-                    return res.json().then(function (data) {
-                        return { ok: res.ok, data: data };
-                    });
-                })
-                .then(function (result) {
-                    feedback.classList.remove("d-none", "text-muted", "text-success", "text-danger");
-                    if (!result.ok || !result.data.ok) {
-                        feedback.textContent = "Could not check answer. Try again.";
-                        feedback.classList.add("text-danger");
-                        return;
-                    }
-                    if (result.data.correct) {
-                        feedback.textContent = "Correct";
-                        feedback.classList.add("text-success");
-                    } else {
-                        feedback.textContent = "Incorrect";
-                        feedback.classList.add("text-danger");
-                    }
-                })
-                .catch(function () {
-                    feedback.classList.remove("d-none", "text-success", "text-muted");
-                    feedback.classList.add("text-danger");
-                    feedback.textContent = "Network error.";
-                });
-        });
-
-        radios.forEach(function (r) {
-            r.addEventListener("change", function () {
-                if (!feedback) return;
-                feedback.classList.add("d-none");
-                feedback.textContent = "";
-                feedback.classList.remove("text-success", "text-danger", "text-muted");
-            });
-        });
-    });
-
-    document.querySelectorAll(".quiz-upvote-btn").forEach(function (btn) {
-        var url = btn.getAttribute("data-upvote-url");
-        if (!url) return;
-
-        function setUpvoteButtonState(upvoted) {
-            btn.setAttribute("data-upvoted", upvoted ? "true" : "false");
-            btn.setAttribute("aria-pressed", upvoted ? "true" : "false");
-            btn.textContent = upvoted ? "Remove upvote" : "Upvote";
-            btn.classList.toggle("btn-outline-secondary", !upvoted);
-            btn.classList.toggle("btn-outline-danger", upvoted);
-        }
-
-        btn.addEventListener("click", function () {
-            var hasUpvote = btn.getAttribute("data-upvoted") === "true";
-            var body = hasUpvote ? { remove: true } : {};
-
-            fetch(url, {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(body),
-            })
-                .then(function (res) {
-                    return res.json().then(function (data) {
-                        return { ok: res.ok, data: data };
-                    });
-                })
-                .then(function (result) {
-                    if (!result.ok || !result.data.ok) return;
-                    var row = btn.closest(".quiz-item");
-                    var countEl = row ? row.querySelector(".quiz-upvote-count") : null;
-                    var labelEl = row ? row.querySelector(".quiz-upvote-label") : null;
-                    if (countEl) countEl.textContent = String(result.data.count);
-                    if (labelEl) {
-                        labelEl.textContent =
-                            result.data.count === 1 ? " upvote" : " upvotes";
-                    }
-                    setUpvoteButtonState(!!result.data.upvoted);
-                })
-                .catch(function () {});
-        });
-    });
-});
-</script>
+    {% include "partials/course_quiz_scripts.html" %}
 {% endblock %}
