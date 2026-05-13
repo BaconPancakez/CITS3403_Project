@@ -1,40 +1,87 @@
 {% extends "base.html" %}
-
-{% block title %}Home - UWA Study Hub{% endblock %}
-
+{% block title %}Home - UUUA{% endblock %}
 {% block content %}
-    <div class="hero-banner">
-        <div class="hero-overlay">
-            <h1 class="hero-title m-0">Welcome back {{current_user.name}}!</h1>
-            <p class="hero-kicker mb-3">Continue learning with UWA Study Hub</p>
-        </div>
+<header class="hero-banner border-bottom">
+    <div class="hero-overlay">
+        <h1 class="hero-title m-0">
+            Welcome back, {{ current_user.name or current_user.email }}
+        </h1>
     </div>
+</header>
 
-    <main class="p-4">
-        <section class="mb-5">
-            <h2 class="mb-4">Available Courses</h2>
-            <div class="row g-4">
-                {% for course in courses %}
-                    <div class="col-md-6 col-lg-4">
+<main class="p-3 p-lg-4">
+    <section class="mb-5">
+        <h4 class="mb-3">Your Favorites</h4>
+        {% if favorite_units %}
+            <div class="row g-3">
+                {% for course in favorite_units %}
+                    <div class="col-12 col-md-6 col-lg-4">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h5 class="card-title course-name">
-                                    <a href="{{ url_for('course_detail', course_code=course.code) }}" class="text-decoration-none">
-                                        {{ course.name }}
-                                    </a>
-                                </h5>
-                                <p class="card-text text-muted">{{ course.code }}</p>
-                                <p class="card-text">{{ course.description }}</p>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <a href="{{ url_for('course_detail', course_code=course.code) }}" class="btn btn-sm btn-primary">
-                                    View Course
+                                <h5 class="card-title">{{ course.code }}</h5>
+                                <p class="card-text">{{ course.title }}</p>
+                                <a href="{{ url_for('course_detail', course_code=course.code) }}"
+                                   class="btn btn-sm btn-primary">
+                                    Open Course
                                 </a>
                             </div>
                         </div>
                     </div>
                 {% endfor %}
             </div>
-        </section>
-    </main>
+        {% else %}
+            <p class="text-muted">No favorited courses yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="mb-5">
+        <h4 class="mb-3">Latest Uploaded Notes</h4>
+        {% if latest_notes %}
+            <div class="row g-3">
+                {% for note in latest_notes %}
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between flex-wrap gap-2">
+                                    <div>
+                                        <h5 class="card-title mb-1">{{ note.title }}</h5>
+                                        <p class="text-muted mb-1">
+                                            {{ note.course_code }} · Uploaded by {{ note.display_name }}
+                                        </p>
+                                        <p class="text-muted small mb-0">
+                                            {{ note.created_at.strftime("%d %b %Y") }}
+                                        </p>
+                                    </div>
+                                    <a href="{{ url_for('course_detail', course_code=note.course_code) }}"
+                                       class="btn btn-sm btn-outline-primary align-self-start">
+                                        View Course
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No notes uploaded yet.</p>
+        {% endif %}
+    </section>
+
+    <section class="mb-4">
+        <h4>Notifications</h4>
+        {% if notifications %}
+            {% for n in notifications %}
+                <div class="alert alert-info">
+                    {{ n.message }}
+                    <a href="{{ url_for('course_detail', course_code=n.course_code) }}"
+                    class="btn btn-sm btn-outline-primary ms-2">
+                        view course
+                    </a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">No new notifications.</p>
+        {% endif %}
+    </section>
+</main>
 {% endblock %}

@@ -125,7 +125,19 @@ def forgot_password():
 @app.route("/home")
 @login_required
 def home():
-    return render_template("home.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
+    latest_notes = (
+        fileModel.query
+        .order_by(fileModel.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    notifications = (
+    Notification.query
+        .filter_by(user_id=current_user.id, is_read=False)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+    return render_template("home.html", courses=FEATURED_COURSES, favorite_units=_favorite_units(), latest_notes=latest_notes, notifications=notifications[0:5])
 
 
 @app.route("/admin")
@@ -319,9 +331,33 @@ def course_detail(course_code):
             else:
                 db.session.add(Discussion(
                     course_code=course["code"],
-                    user_id=current_user.id,            # ← real user id from Flask-Login
+                    user_id=current_user.id,
                     text=comment,
+                    parent_id=None
                 ))
+                db.session.commit()
+                
+        elif form_type == "discussion_reply":
+            parent_id = request.form.get("parent_id", type=int)
+            comment = request.form.get("comment", "").strip()
+            parent = Discussion.query.get_or_404(parent_id)
+            if not comment:
+                flash("Reply cannot be empty.", "danger")
+            else:
+                reply = Discussion(
+                    course_code=course["code"],
+                    user_id=current_user.id,
+                    text=comment,
+                    parent_id=parent.id
+                )
+                db.session.add(reply)
+
+                if parent.user_id and parent.user_id != current_user.id:
+                    db.session.add(Notification(
+                        user_id=parent.user_id,
+                        course_code=course["code"],
+                        message=f"{current_user.name or current_user.email} replied to your discussion in {course['code']}"
+                    ))
                 db.session.commit()
 
         elif form_type == "notes_upload":
@@ -398,7 +434,7 @@ def course_detail(course_code):
     )
     course_discussions = (
         Discussion.query
-        .filter_by(course_code=course["code"])
+        .filter_by(course_code=course["code"], parent_id=None)
         .order_by(Discussion.created_at.asc())
         .all()
     )
@@ -562,6 +598,7 @@ def delete_discussion(discussion_id):
     return redirect(url_for("course_detail", course_code=course_code))
 
 @app.route("/admin/note/delete/<int:note_id>", methods=["POST"])
+@login_required
 def delete_note(note_id):
     if current_user.role != "admin":
         flash("Unauthorized access.", "danger")

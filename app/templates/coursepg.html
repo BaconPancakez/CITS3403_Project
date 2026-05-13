@@ -285,6 +285,53 @@
                 </div>
             </div>
 
+            {# Discussion card #}
+            <div class="card">
+                <div class="card-body">
+                    <h6>Discussion</h6>
+
+                    <div class="mb-3" style="max-height: 260px; overflow-y: auto;">
+                        {% for c in discussions %}
+                        <div class="mb-2 p-2 bg-light rounded">
+                            <p class="small mb-0">
+                                <strong>{{ c.display_name }}:</strong> {{ c.text }}
+                            </p>
+                            <p class="text-muted" style="font-size: 0.75rem;">
+                                {{ c.created_at.strftime("%d %b %Y %H:%M") }}
+                            </p>
+                            {% if current_user.role == "admin" %}
+                            <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
+                                <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
+                                    Remove Comment
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="POST" class="mt-2">
+                                <input type="hidden" name="form_type" value="discussion_reply">
+                                <input type="hidden" name="parent_id" value="{{ c.id }}">
+
+                                <div class="input-group input-group-sm">
+                                    <input type="text" name="comment" class="form-control" placeholder="Reply..." required>
+                                    <button class="btn btn-outline-primary" type="submit">Reply</button>
+                                </div>
+                            </form>
+                        </div>
+                        {% else %}
+                        <p class="text-muted small">No comments yet. Start the conversation!</p>
+                        {% endfor %}
+                    </div>
+
+                    <form method="POST">
+                        <input type="hidden" name="form_type" value="discussion">
+                        <div class="input-group">
+                            <input type="text" name="comment" class="form-control" placeholder="Write a comment…"
+                                required>
+                            <button class="btn btn-primary" type="submit">Post</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
         </div>{# end col-lg-4 #}
     </div>{# end row #}
 </main>
