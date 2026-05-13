@@ -15,17 +15,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError
 
 from app import app, db
-from app.models import (
-    FEATURED_COURSES,
-    UWA_UNITS,
-    UWA_UNITS_BY_CODE,
-    User,
-    Review,
-    Discussion,
-    fileModel,
-    CourseQuiz,
-    QuizUpvote,
-)
+from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, BannedUser, CourseQuiz,
+    QuizUpvote
 
 
 def _favorite_codes():
@@ -46,13 +37,18 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:                           # already logged in
+    if current_user.is_authenticated:
         return redirect(url_for("home"))
 
     if request.method == "POST":
         email    = request.form.get("email",    "").strip().lower()
         password = request.form.get("password", "")
-        remember = bool(request.form.get("remember"))           # optional "remember me" checkbox
+        remember = bool(request.form.get("remember"))
+
+        # ── Ban check ─────────────────────────────────────────────────────────
+        if BannedUser.query.filter_by(email=email).first():
+            flash("This account has been banned. Contact support if you believe this is an error.", "danger")
+            return redirect(url_for("login"))
 
         user = User.query.filter_by(email=email).first()
 
@@ -139,7 +135,70 @@ def admin():
     if current_user.role != "admin":
         flash("Admins only.", "danger")
         return redirect(url_for("home"))
-    return render_template("admin.html", courses=FEATURED_COURSES, favorite_units=_favorite_units())
+
+    students = User.query.filter_by(role="student").order_by(User.name).all()
+    banned   = BannedUser.query.order_by(BannedUser.created_at.desc()).all()
+
+    return render_template(
+        "admin.html",
+        courses=FEATURED_COURSES,
+        favorite_units=_favorite_units(),
+        students=students,
+        banned=banned,
+    )
+
+
+@app.route("/admin/ban/<int:user_id>", methods=["POST"])
+@login_required
+def ban_user(user_id):
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    user = User.query.get_or_404(user_id)
+
+    if user.role == "admin":
+        flash("Admin accounts cannot be banned.", "danger")
+        return redirect(url_for("admin", tab="students"))
+
+    reason = request.form.get("reason", "").strip() or None
+
+    # Add to ban list (skip if already present)
+    if not BannedUser.query.filter_by(email=user.email).first():
+        db.session.add(BannedUser(email=user.email, name=user.name, reason=reason))
+
+    # Nullify nullable FK references so history is preserved
+    for review in user.reviews.all():
+        review.user_id = None
+    for discussion in user.discussions.all():
+        discussion.user_id = None
+
+    # Notes have non-nullable author_id → must be deleted
+    for note in user.notes.all():
+        db.session.delete(note)
+
+    display = user.name or user.email
+    db.session.delete(user)
+    db.session.commit()
+
+    flash(f"'{display}' has been banned and removed.", "success")
+    return redirect(url_for("admin", tab="students"))
+
+
+@app.route("/admin/unban/<int:banned_id>", methods=["POST"])
+@login_required
+def unban_user(banned_id):
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    entry = BannedUser.query.get_or_404(banned_id)
+    display = entry.name or entry.email
+    db.session.delete(entry)
+    db.session.commit()
+
+    flash(f"'{display}' has been removed from the ban list.", "success")
+    return redirect(url_for("admin", tab="students"))
 
 
 @app.route("/course")
