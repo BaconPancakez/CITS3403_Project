@@ -194,6 +194,9 @@ def ban_user(user_id):
             quiz.upvote_count = max(0, (quiz.upvote_count or 0) - 1)
         db.session.delete(upvote)
 
+    # Remove notifications for this user (non-nullable user_id)
+    Notification.query.filter_by(user_id=user.id).delete()
+
     # Delete notes (non-nullable author_id) — clean up votes & reports first
     for note in user.notes.all():
         NoteVote.query.filter_by(note_id=note.id).delete()
@@ -882,53 +885,6 @@ def notes_file(note_id):
     )
 
 
-# ── Admin delete routes ───────────────────────────────────────────────────────
-
-@app.route("/admin/review/delete/<int:review_id>", methods=["POST"])
-@login_required
-def delete_review(review_id):
-    if current_user.role != "admin":
-        flash("Unauthorized.", "danger")
-        return redirect(url_for("home"))
-
-    review = Review.query.get_or_404(review_id)
-    course_code = review.course_code
-    db.session.delete(review)
-    db.session.commit()
-    flash("Review removed.", "success")
-    return redirect(url_for("course_detail", course_code=course_code))
-
-
-@app.route("/admin/discussion/delete/<int:discussion_id>", methods=["POST"])
-@login_required
-def delete_discussion(discussion_id):
-    if current_user.role != "admin":
-        flash("Unauthorized.", "danger")
-        return redirect(url_for("home"))
-
-    discussion = Discussion.query.get_or_404(discussion_id)
-    course_code = discussion.course_code
-    db.session.delete(discussion)
-    db.session.commit()
-    flash("Discussion removed.", "success")
-    return redirect(url_for("course_detail", course_code=course_code))
-
-@app.route("/admin/note/delete/<int:note_id>", methods=["POST"])
-@login_required
-def delete_note(note_id):
-    if current_user.role != "admin":
-        flash("Unauthorized access.", "danger")
-        return redirect(url_for("home"))
-
-    note = fileModel.query.get_or_404(note_id)
-    course_code = note.course_code
-
-    db.session.delete(note)
-    db.session.commit()
-
-    flash("Note removed successfully.", "success")
-    return redirect(url_for("course_detail", course_code=course_code))
-
 def _reset_serializer():
     return URLSafeTimedSerializer(app.config["SECRET_KEY"])
 
@@ -982,4 +938,3 @@ def reset_password(token):
         return redirect(url_for("login"))
 
     return render_template("reset_password.html")
-    )
