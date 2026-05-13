@@ -24,7 +24,10 @@
         <aside class="sidebar{% if 'landing-page' in self.body_class() %} d-none{% endif %}">
             <!-- <div class="sidebar-brand">Admin</div> -->
             <nav class="sidebar-nav">
-                <a class="nav-link{% if request.endpoint == 'home' or (request.endpoint == 'index' and current_user.is_authenticated) %} active{% endif %}" href="{{ url_for('home') }}">Home</a>
+                <a class="nav-link{% if request.endpoint in ('home', 'admin') or (request.endpoint == 'index' and current_user.is_authenticated) %} active{% endif %}"
+                    href="{{ url_for('admin') if current_user.is_authenticated and current_user.role == 'admin' else url_for('home') }}">
+                    Home
+                </a>
                 <a class="nav-link{% if request.endpoint == 'course_list' %} active{% endif %}" href="{{ url_for('course_list') }}">Courses</a>
                 {% if not current_user.is_authenticated %}
                     <a class="nav-link{% if request.endpoint == 'login' %} active{% endif %}" href="{{ url_for('login') }}">Login</a>
