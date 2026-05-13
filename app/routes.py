@@ -15,6 +15,8 @@ from app.models import (
     NoteVote, NoteReport, QuizReport,
 )
 
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from flask_login import logout_user
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -108,12 +110,6 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("index"))
-
-
-@app.route("/forgot-password")
-def forgot_password():
-    return render_template("forgot_password.html")
-
 
 # ── Protected routes ──────────────────────────────────────────────────────────
 
@@ -883,4 +879,107 @@ def notes_file(note_id):
         mimetype=note.mimetype or "application/pdf",
         download_name=download_name,
         as_attachment=False,
+    )
+
+
+# ── Admin delete routes ───────────────────────────────────────────────────────
+
+@app.route("/admin/review/delete/<int:review_id>", methods=["POST"])
+@login_required
+def delete_review(review_id):
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    review = Review.query.get_or_404(review_id)
+    course_code = review.course_code
+    db.session.delete(review)
+    db.session.commit()
+    flash("Review removed.", "success")
+    return redirect(url_for("course_detail", course_code=course_code))
+
+
+@app.route("/admin/discussion/delete/<int:discussion_id>", methods=["POST"])
+@login_required
+def delete_discussion(discussion_id):
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    discussion = Discussion.query.get_or_404(discussion_id)
+    course_code = discussion.course_code
+    db.session.delete(discussion)
+    db.session.commit()
+    flash("Discussion removed.", "success")
+    return redirect(url_for("course_detail", course_code=course_code))
+
+@app.route("/admin/note/delete/<int:note_id>", methods=["POST"])
+@login_required
+def delete_note(note_id):
+    if current_user.role != "admin":
+        flash("Unauthorized access.", "danger")
+        return redirect(url_for("home"))
+
+    note = fileModel.query.get_or_404(note_id)
+    course_code = note.course_code
+
+    db.session.delete(note)
+    db.session.commit()
+
+    flash("Note removed successfully.", "success")
+    return redirect(url_for("course_detail", course_code=course_code))
+
+def _reset_serializer():
+    return URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    reset_link = None
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            token = _reset_serializer().dumps(user.email, salt="password-reset")
+            reset_link = url_for("reset_password", token=token, _external=True)
+            flash("Password reset link generated.", "success")
+        else:
+            flash("No account found with that email.", "danger")
+
+    return render_template("forgot_password.html", reset_link=reset_link)
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        email = _reset_serializer().loads(
+            token,
+            salt="password-reset",
+            max_age=1800
+        )
+    except SignatureExpired:
+        flash("Reset link expired.", "danger")
+        return redirect(url_for("forgot_password"))
+    except BadSignature:
+        flash("Invalid reset link.", "danger")
+        return redirect(url_for("forgot_password"))
+
+    user = User.query.filter_by(email=email).first_or_404()
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for("reset_password", token=token))
+
+        user.set_password(password)
+        db.session.commit()
+
+        logout_user()
+        flash("Password updated. Please sign in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html")
     )
