@@ -17,6 +17,8 @@ from sqlalchemy.exc import IntegrityError
 from app import app, db
 from app.models import FEATURED_COURSES, UWA_UNITS, UWA_UNITS_BY_CODE, User, Review, Discussion, fileModel, BannedUser, CourseQuiz, QuizUpvote, Notification
 
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+from flask_login import logout_user
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -113,12 +115,6 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("index"))
-
-
-@app.route("/forgot-password")
-def forgot_password():
-    return render_template("forgot_password.html")
-
 
 # ── Protected routes ──────────────────────────────────────────────────────────
 
@@ -612,3 +608,57 @@ def delete_note(note_id):
 
     flash("Note removed successfully.", "success")
     return redirect(url_for("course_detail", course_code=course_code))
+
+def _reset_serializer():
+    return URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    reset_link = None
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            token = _reset_serializer().dumps(user.email, salt="password-reset")
+            reset_link = url_for("reset_password", token=token, _external=True)
+            flash("Password reset link generated.", "success")
+        else:
+            flash("No account found with that email.", "danger")
+
+    return render_template("forgot_password.html", reset_link=reset_link)
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        email = _reset_serializer().loads(
+            token,
+            salt="password-reset",
+            max_age=1800
+        )
+    except SignatureExpired:
+        flash("Reset link expired.", "danger")
+        return redirect(url_for("forgot_password"))
+    except BadSignature:
+        flash("Invalid reset link.", "danger")
+        return redirect(url_for("forgot_password"))
+
+    user = User.query.filter_by(email=email).first_or_404()
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for("reset_password", token=token))
+
+        user.set_password(password)
+        db.session.commit()
+
+        logout_user()
+        flash("Password updated. Please sign in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html")
