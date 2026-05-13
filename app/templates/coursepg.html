@@ -261,6 +261,20 @@
                             <p class="text-muted" style="font-size: 0.75rem;">
                                 {{ c.created_at.strftime("%d %b %Y %H:%M") }}
                             </p>
+                            {% if c.replies %}
+                            <div class="mt-2">
+                                {% for r in c.replies|sort(attribute='created_at') %}
+                                <div class="ms-3 ps-2 border-start">
+                                    <p class="small mb-0">
+                                        <strong>{{ r.display_name }}:</strong> {{ r.text }}
+                                    </p>
+                                    <p class="text-muted" style="font-size: 0.7rem;">
+                                        {{ r.created_at.strftime("%d %b %Y %H:%M") }}
+                                     </p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                             {% if current_user.role == "admin" %}
                             <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
                                 <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
