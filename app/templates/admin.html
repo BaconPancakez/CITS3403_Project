@@ -3,41 +3,212 @@
 {% block title %}Admin dashboard{% endblock %}
 
 {% block page_css %}
-    <link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet" />
+<link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet" />
 {% endblock %}
 
 {% block body_class %}admin-dashboard{% endblock %}
 
 {% block content %}
-    <header class="hero-banner border-bottom">
-        <div class="hero-overlay">
-            <h1 id="welcome_header" class="hero-title m-0"></h1>
-            <p class="hero-kicker mb-3 fs-5">What are you up to today?</p>
-        </div>
-    </header>
+<header class="hero-banner border-bottom">
+    <div class="hero-overlay">
+        <h1 id="welcome_header" class="hero-title m-0"></h1>
+        <p class="hero-kicker mb-3 fs-5">What are you up to today?</p>
+    </div>
+</header>
 
-    <main class="p-3 p-lg-4">
-        <div class="assigned_container row g-3">
-            {% for course in courses %}
+<main class="p-3 p-lg-4">
+
+    {# ── Tab navigation ──────────────────────────────────────────────── #}
+    <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses-panel"
+                type="button" role="tab" aria-controls="courses-panel" aria-selected="true">
+                📚 Courses
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="students-tab" data-bs-toggle="tab" data-bs-target="#students-panel"
+                type="button" role="tab" aria-controls="students-panel" aria-selected="false">
+                🎓 Students
+                {% if students %}
+                <span class="badge bg-secondary ms-1">{{ students | length }}</span>
+                {% endif %}
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabsContent">
+
+        {# ── Tab 1 : Courses ─────────────────────────────────────────── #}
+        <div class="tab-pane fade show active" id="courses-panel" role="tabpanel" aria-labelledby="courses-tab">
+            <div class="assigned_container row g-3">
+                {% for course in courses %}
                 <div class="col-12 col-md-6 col-lg-4">
                     <div class="card h-100">
-                        <img src="data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22286%22%20height%3D%22180%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20286%20180%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_19daecb324d%20text%20%7B%20fill%3Argba(255%2C255%2C255%2C.75)%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_19daecb324d%22%3E%3Crect%20width%3D%22286%22%20height%3D%22180%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2299.421875%22%20y%3D%2296.6%22%3EImage%20cap%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E" class="card-img-top" alt="course" />
+                        <img src="data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22286%22%20height%3D%22180%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20286%20180%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_19daecb324d%20text%20%7B%20fill%3Argba(255%2C255%2C255%2C.75)%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A14pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_19daecb324d%22%3E%3Crect%20width%3D%22286%22%20height%3D%22180%22%20fill%3D%22%23777%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2299.421875%22%20y%3D%2296.6%22%3EImage%20cap%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E"
+                            class="card-img-top" alt="course" />
                         <div class="card-body">
                             <h5 class="card-title">{{ course.code }} {{ course.title }}</h5>
                             <p class="card-text">{{ course.summary }}</p>
-                            <a href="{{ url_for('course_detail', course_code=course.code) }}" class="btn btn-primary">View course</a>
+                            <a href="{{ url_for('course_detail', course_code=course.code) }}"
+                                class="btn btn-primary">View course</a>
                         </div>
                     </div>
                 </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
         </div>
 
-        <div class="complaint_container container-fluid"></div>
-    </main>
+        {# ── Tab 2 : Students ────────────────────────────────────────── #}
+        <div class="tab-pane fade" id="students-panel" role="tabpanel" aria-labelledby="students-tab">
+
+            {# Active students table #}
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <h4 class="mb-0">Registered Students</h4>
+                <span class="badge bg-primary">{{ students | length }}</span>
+            </div>
+
+            {% if students %}
+            <div class="table-responsive mb-5">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Email</th>
+                            <th scope="col" class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td class="text-muted small">{{ student.id }}</td>
+                            <td>{{ student.name or "—" }}</td>
+                            <td>{{ student.email }}</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#banModal{{ student.id }}">
+                                    🚫 Ban
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# Confirmation modals – one per student #}
+            {% for student in students %}
+            <div class="modal fade" id="banModal{{ student.id }}" tabindex="-1"
+                aria-labelledby="banModalLabel{{ student.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="POST" action="{{ url_for('ban_user', user_id=student.id) }}">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title" id="banModalLabel{{ student.id }}">
+                                    Ban {{ student.name or student.email }}?
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-2">
+                                    <strong>This action is permanent.</strong>
+                                    The user will be removed and their uploaded notes deleted.
+                                    Reviews and discussions they authored will be kept anonymously.
+                                </p>
+                                <div class="mb-3">
+                                    <label for="reason{{ student.id }}" class="form-label">
+                                        Reason <span class="text-muted">(optional)</span>
+                                    </label>
+                                    <textarea id="reason{{ student.id }}" name="reason" class="form-control" rows="2"
+                                        placeholder="e.g. Repeated policy violations"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">
+                                    Confirm Ban
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% else %}
+            <p class="text-muted fst-italic">No registered students found.</p>
+            {% endif %}
+
+            {# Banned users list #}
+            {% if banned %}
+            <hr>
+            <div class="d-flex align-items-center gap-2 mb-3 mt-4">
+                <h5 class="mb-0">Banned Users</h5>
+                <span class="badge bg-danger">{{ banned | length }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Reason</th>
+                            <th>Banned</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in banned %}
+                        <tr>
+                            <td>{{ b.name or "—" }}</td>
+                            <td><code>{{ b.email }}</code></td>
+                            <td>
+                                {% if b.reason %}
+                                {{ b.reason }}
+                                {% else %}
+                                <em class="text-muted">No reason given</em>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted small text-nowrap">
+                                {{ b.created_at.strftime("%Y-%m-%d %H:%M") }}
+                            </td>
+                            <td class="text-end">
+                                <form method="POST" action="{{ url_for('unban_user', banned_id=b.id) }}"
+                                    onsubmit="return confirm('Remove {{ b.email }} from the ban list?')">
+                                    <button type="submit" class="btn btn-outline-success btn-sm">
+                                        ✅ Unban
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+        </div>{# /students-panel #}
+    </div>{# /tab-content #}
+
+    <div class="complaint_container container-fluid"></div>
+</main>
 {% endblock %}
 
 {% block scripts %}
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+    // Restore the active tab from the URL query string (?tab=students)
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get("tab");
+        if (tab) {
+            const trigger = document.querySelector(`#${CSS.escape(tab)}-tab`);
+            if (trigger) {
+                bootstrap.Tab.getOrCreateInstance(trigger).show();
+            }
+        }
+    })();
+</script>
 {% endblock %}
-
-
