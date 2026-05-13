@@ -63,6 +63,25 @@ class Discussion(TimestampMixin, db.Model):
         return self.user.name if self.user else "Anonymous"
 
 
+# ── To Store PDF ──────────────────────────────────────────────────────────
+
+class fileModel(TimestampMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    course_code = db.Column(db.String(20), nullable=False, index=True)
+    author_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    details = db.Column(db.Text, nullable=True)
+    filename = db.Column(db.String(255), nullable=True)
+    mimetype = db.Column(db.String(100), nullable=True)
+    # https://www.sqlite.org/appfileformat.html
+    file = db.Column(db.BLOB, nullable=False)
+
+    author = db.relationship("User", backref=db.backref("notes", lazy="dynamic"))
+
+    @property
+    def display_name(self):
+        return self.author.name if self.author else "Anonymous"
+
 # ── Course catalogue ──────────────────────────────────────────────────────────
 
 FEATURED_COURSES = [
