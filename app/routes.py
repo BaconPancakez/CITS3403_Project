@@ -447,6 +447,10 @@ def course_detail(course_code):
                 flash("Rating must be between 1 and 5.", "danger")
             elif not text:
                 flash("Review text cannot be empty.", "danger")
+            elif Review.query.filter_by(
+                course_code=course["code"], user_id=current_user.id
+            ).first():
+                flash("You have already reviewed this course.", "warning")
             else:
                 db.session.add(Review(
                     course_code=course["code"], user_id=current_user.id,
@@ -638,6 +642,11 @@ def course_detail(course_code):
         .order_by(Review.created_at.desc())
         .all()
     )
+
+    user_review = Review.query.filter_by(
+        course_code=course["code"], user_id=current_user.id
+    ).first()
+
     course_discussions = (
         Discussion.query
         .filter_by(course_code=course["code"], parent_id=None)
@@ -682,6 +691,7 @@ def course_detail(course_code):
         favorite_units=_favorite_units(),
         sort=sort,
         user_votes=user_votes,
+        user_review=user_review,
     )
 
 
@@ -879,6 +889,10 @@ def course_quizzes(course_code):
                 flash("Rating must be between 1 and 5.", "danger")
             elif not text:
                 flash("Review text cannot be empty.", "danger")
+            elif Review.query.filter_by(
+                course_code=course["code"], user_id=current_user.id
+            ).first():
+                flash("You have already reviewed this course.", "warning")
             else:
                 db.session.add(Review(
                     course_code=course["code"], user_id=current_user.id,
@@ -1028,6 +1042,18 @@ def quiz_upvote_json(course_code, quiz_id):
 
     return jsonify({"ok": True, "count": quiz.upvote_count, "upvoted": True})
 
+@app.route("/review/<int:review_id>/delete", methods=["POST"])
+@login_required
+def delete_own_review(review_id):
+    review = Review.query.get_or_404(review_id)
+    if review.user_id != current_user.id and current_user.role != "admin":
+        flash("You can only remove your own reviews.", "danger")
+        return redirect(url_for("course_detail", course_code=review.course_code))
+    course_code = review.course_code
+    db.session.delete(review)
+    db.session.commit()
+    flash("Your review has been removed.", "info")
+    return redirect(url_for("course_detail", course_code=course_code))
 
 # ── File serving ──────────────────────────────────────────────────────────────
 

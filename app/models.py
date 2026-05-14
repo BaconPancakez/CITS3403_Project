@@ -41,6 +41,10 @@ class Review(TimestampMixin, db.Model):
     rating      = db.Column(db.Integer, nullable=False)
     text        = db.Column(db.Text,    nullable=False)
 
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "course_code", name="uq_review_user_course"),
+    )
+
     user = db.relationship("User", backref=db.backref("reviews", lazy="dynamic"))
 
     @property

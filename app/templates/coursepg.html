@@ -61,8 +61,18 @@
             </div>
 
             {# Sort controls #}
-            <div class="d-flex align-items-center gap-2 mb-3">
-                <span class="text-muted small fw-semibold">Sort notes by:</span>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            
+                {# Search input #}
+                <div class="input-group input-group-sm" style="max-width: 280px;">
+                    <span class="input-group-text">🔍</span>
+                    <input type="text" id="noteSearchInput" class="form-control" placeholder="Search notes…" autocomplete="off">
+                    <button type="button" class="btn btn-outline-secondary" id="noteSearchClear" style="display:none;"
+                        aria-label="Clear search">✕</button>
+                </div>
+            
+                {# Sort controls #}
+                <span class="text-muted small fw-semibold ms-auto">Sort by:</span>
                 <a href="{{ url_for('course_detail', course_code=course.code, sort='date') }}"
                     class="btn btn-sm {% if sort == 'date' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
                     📅 Newest
@@ -71,11 +81,18 @@
                     class="btn btn-sm {% if sort == 'votes' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
                     ⭐ Top Rated
                 </a>
+            
             </div>
+            
+            {# No-results message (hidden until needed) #}
+            <p id="noteSearchEmpty" class="text-muted small mb-3" style="display:none;">
+                No notes match your search.
+            </p>
 
             {# Notes cards #}
             {% for note in notes %}
-            <div class="card mb-3">
+            <div class="card mb-3 note-card" data-note-title="{{ note.title | lower }}"
+                data-note-uploader="{{ note.display_name | lower }}" data-note-details="{{ (note.details or '') | lower }}">
                 <div class="card-body">
 
                     {# Title + score badge #}
@@ -253,16 +270,82 @@
             {# Reviews card #}
             <div class="card mb-3">
                 <div class="card-body">
-                    <h6>Reviews</h6>
-
-                    {% if avg_rating %}
-                    <p class="fw-bold">Average Rating: {{ avg_rating }}/5</p>
+                    <h6 class="fw-bold mb-3">Reviews</h6>
+            
+                    {# ── Rating summary ── #}
+                    {% if reviews %}
+                    {% set counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0} %}
+                    {% for r in reviews %}{% set _ = counts.update({r.rating: counts[r.rating] + 1}) %}{% endfor %}
+            
+                    <div class="d-flex align-items-center gap-3 mb-3">
+            
+                        {# Big average number #}
+                        <div class="text-center flex-shrink-0">
+                            <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                                {{ avg_rating }}
+                            </div>
+                            <div class="text-warning" style="font-size: 1rem; letter-spacing: 0.05em;">
+                                {% for i in range(avg_rating | int) %}★{% endfor %}{% for i in range(5 - avg_rating | int) %}☆{%
+                                endfor %}
+                            </div>
+                            <div class="text-muted small">
+                                {{ reviews | length }} review{{ 's' if reviews | length != 1 }}
+                            </div>
+                        </div>
+            
+                        {# Distribution bars #}
+                        <div class="flex-grow-1">
+                            {% for star in [5, 4, 3, 2, 1] %}
+                            {% set count = counts[star] %}
+                            {% set pct = ((count / reviews | length) * 100) | round | int %}
+                            <div class="d-flex align-items-center gap-2 mb-1 review-bar-row" data-star="{{ star }}" role="button"
+                                title="Filter by {{ star }} star{{ 's' if star != 1 }}" style="cursor: pointer; border-radius: 6px; padding: 2px 4px;
+                                        transition: background 0.15s ease;">
+                                <span class="text-muted small text-nowrap fw-semibold" style="width: 1.5rem; text-align: right;">
+                                    {{ star }}
+                                </span>
+                                <span class="text-warning small">★</span>
+                                <div class="flex-grow-1 bg-light rounded" style="height: 8px; overflow: hidden;">
+                                    <div class="review-bar-fill rounded" style="height: 100%; width: {{ pct }}%;
+                                                background: #f59e0b;
+                                                transition: width 0.4s ease, background 0.2s ease;">
+                                    </div>
+                                </div>
+                                <span class="text-muted small text-nowrap" style="width: 1.5rem;">
+                                    {{ count }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+            
+                    </div>
+                    <hr>
                     {% endif %}
-
-                    <form method="POST">
+            
+                    {# ── Submit review form / already reviewed state ── #}
+                    {% if user_review %}
+                    <div class="alert alert-light border mb-3 py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="small fw-semibold mb-1">Your review</p>
+                                <div class="text-warning mb-1" style="font-size: 0.95rem;">
+                                    {{ "★" * user_review.rating }}{{ "☆" * (5 - user_review.rating) }}
+                                </div>
+                                <p class="small text-muted mb-0">{{ user_review.text }}</p>
+                            </div>
+                            <form method="POST" action="{{ url_for('delete_own_review', review_id=user_review.id) }}"
+                                class="ms-2 flex-shrink-0" onsubmit="return confirm('Remove your review?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove your review">
+                                    ✕
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <form method="POST" class="mb-3">
                         <input type="hidden" name="form_type" value="review">
                         <div class="mb-2">
-                            <select name="rating" class="form-select" required>
+                            <select name="rating" class="form-select form-select-sm" required>
                                 <option value="">Select rating</option>
                                 <option value="5">★★★★★ (5)</option>
                                 <option value="4">★★★★☆ (4)</option>
@@ -272,36 +355,77 @@
                             </select>
                         </div>
                         <div class="mb-2">
-                            <textarea name="review_text" class="form-control" placeholder="Write your review…"
+                            <textarea name="review_text" class="form-control form-control-sm" rows="2" placeholder="Write your review…"
                                 required></textarea>
                         </div>
-                        <button class="btn btn-primary w-100">Submit Review</button>
+                        <button class="btn btn-primary btn-sm w-100">Submit Review</button>
                     </form>
-
+                    {% endif %}
+            
                     <hr>
-
-                    {% for r in reviews %}
-                    <div class="mb-2">
-                        <div class="text-warning">
-                            {{ "★" * r.rating }}{{ "☆" * (5 - r.rating) }}
-                        </div>
-                        <p class="small text-muted mb-1">
-                            <strong>{{ r.display_name }}:</strong> {{ r.text }}
-                        </p>
-                        {% if current_user.role == "admin" %}
-                        <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}">
-                            <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
-                                Remove Review
+            
+                    {# ── Sort + filter controls ── #}
+                    {% if reviews %}
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                        <span class="text-muted small fw-semibold">Sort:</span>
+            
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-primary review-sort-btn" data-sort="newest">
+                                Newest
                             </button>
-                        </form>
-                        {% endif %}
-                        <p class="text-muted" style="font-size: 0.75rem;">
-                            {{ r.created_at.strftime("%d %b %Y") }}
-                        </p>
+                            <button type="button" class="btn btn-outline-secondary review-sort-btn" data-sort="highest">
+                                ★ Highest
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary review-sort-btn" data-sort="lowest">
+                                ★ Lowest
+                            </button>
+                        </div>
                     </div>
-                    {% else %}
-                    <p class="text-muted small">No reviews yet.</p>
-                    {% endfor %}
+                    {% endif %}
+            
+                    {# ── Review list ── #}
+                    <div id="reviewList">
+                        {% for r in reviews %}
+                        <div class="review-item mb-3 pb-3 border-bottom" data-rating="{{ r.rating }}"
+                            data-created="{{ r.created_at.timestamp() | int }}">
+            
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="text-warning" style="font-size: 0.95rem;">
+                                        {{ "★" * r.rating }}{{ "☆" * (5 - r.rating) }}
+                                    </span>
+                                    <span class="ms-2 small fw-semibold">{{ r.display_name }}</span>
+                                </div>
+                                <span class="text-muted small text-nowrap ms-2">
+                                    {{ r.created_at.strftime("%d %b %Y") }}
+                                </span>
+                            </div>
+            
+                            <p class="small text-muted mb-1 mt-1">{{ r.text }}</p>
+            
+                            {% if current_user.role == "admin" %}
+                            <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}">
+                                <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
+                                    Remove
+                                </button>
+                            </form>
+                            {% endif %}
+            
+                        </div>
+                        {% else %}
+                        <p class="text-muted small mb-0">No reviews yet.</p>
+                        {% endfor %}
+                    </div>
+            
+                    {# Show more / collapse #}
+                    {% if reviews | length > 4 %}
+                    <div class="text-center mt-1">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="reviewToggleBtn">
+                            Show all {{ reviews | length }} reviews
+                        </button>
+                    </div>
+                    {% endif %}
+            
                 </div>
             </div>
 
@@ -453,5 +577,150 @@
 {% endblock %}
 
 {% block scripts %}
-    {% include "partials/course_quiz_scripts.html" %}
+{% include "partials/course_quiz_scripts.html" %}
+<script>
+    (function () {
+        const input = document.getElementById("noteSearchInput");
+        const clearBtn = document.getElementById("noteSearchClear");
+        const empty = document.getElementById("noteSearchEmpty");
+
+        if (!input) return;
+
+        function filter() {
+            const q = input.value.trim().toLowerCase();
+            const cards = document.querySelectorAll(".note-card");
+            let shown = 0;
+
+            cards.forEach(function (card) {
+                const title = card.getAttribute("data-note-title") || "";
+                const uploader = card.getAttribute("data-note-uploader") || "";
+                const details = card.getAttribute("data-note-details") || "";
+                const match = !q || title.includes(q) || uploader.includes(q) || details.includes(q);
+
+                card.style.display = match ? "" : "none";
+                if (match) shown++;
+            });
+
+            clearBtn.style.display = q ? "inline-flex" : "none";
+            empty.style.display = (q && shown === 0) ? "block" : "none";
+        }
+
+        input.addEventListener("input", filter);
+
+        clearBtn.addEventListener("click", function () {
+            input.value = "";
+            filter();
+            input.focus();
+        });
+    }());
+</script>
+<script>
+    (function () {
+        const VISIBLE_DEFAULT = 4;
+
+        const list = document.getElementById("reviewList");
+        const toggleBtn = document.getElementById("reviewToggleBtn");
+        const sortBtns = document.querySelectorAll(".review-sort-btn");
+        const barRows = document.querySelectorAll(".review-bar-row");
+
+        if (!list) return;
+
+        let currentSort = "newest";
+        let currentStar = 0;      // 0 = all
+        let expanded = false;
+
+        // ── Collect review items ──────────────────────────────────────────────
+        function items() {
+            return [...list.querySelectorAll(".review-item")];
+        }
+
+        // ── Sort ──────────────────────────────────────────────────────────────
+        function sorted(arr) {
+            return [...arr].sort(function (a, b) {
+                const ra = parseInt(a.dataset.rating, 10);
+                const rb = parseInt(b.dataset.rating, 10);
+                const ca = parseInt(a.dataset.created, 10);
+                const cb = parseInt(b.dataset.created, 10);
+                if (currentSort === "highest") return rb - ra || cb - ca;
+                if (currentSort === "lowest") return ra - rb || cb - ca;
+                return cb - ca;
+            });
+        }
+
+        // ── Re-render ─────────────────────────────────────────────────────────
+        function render() {
+            const all = items();
+            const filtered = currentStar
+                ? all.filter(el => parseInt(el.dataset.rating, 10) === currentStar)
+                : all;
+            const ordered = sorted(filtered);
+
+            all.forEach(el => { el.style.display = "none"; });
+            ordered.forEach(function (el, i) {
+                list.appendChild(el);
+                el.style.display = (!expanded && i >= VISIBLE_DEFAULT) ? "none" : "";
+            });
+
+            // Toggle button
+            if (toggleBtn) {
+                if (ordered.length <= VISIBLE_DEFAULT) {
+                    toggleBtn.style.display = "none";
+                } else if (expanded) {
+                    toggleBtn.textContent = "Show fewer";
+                    toggleBtn.style.display = "";
+                } else {
+                    toggleBtn.textContent = `Show all ${ordered.length} reviews`;
+                    toggleBtn.style.display = "";
+                }
+            }
+
+            // Highlight active bar
+            barRows.forEach(function (row) {
+                const star = parseInt(row.dataset.star, 10);
+                const active = currentStar === star;
+                const fill = row.querySelector(".review-bar-fill");
+
+                row.style.background = active
+                    ? "rgba(245, 158, 11, 0.12)"
+                    : "";
+                if (fill) fill.style.background = active ? "#d97706" : "#f59e0b";
+            });
+        }
+
+        // ── Sort buttons ──────────────────────────────────────────────────────
+        sortBtns.forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                currentSort = this.dataset.sort;
+                sortBtns.forEach(b => {
+                    b.classList.toggle("btn-primary", b === this);
+                    b.classList.toggle("btn-outline-secondary", b !== this);
+                });
+                render();
+            }.bind(btn));
+        });
+
+        // ── Bar row clicks ────────────────────────────────────────────────────
+        barRows.forEach(function (row) {
+            row.addEventListener("click", function () {
+                const star = parseInt(this.dataset.star, 10);
+                // Clicking the active filter again clears it
+                currentStar = (currentStar === star) ? 0 : star;
+                expanded = false;
+                render();
+            });
+        });
+
+        // ── Show more / fewer ─────────────────────────────────────────────────
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function () {
+                expanded = !expanded;
+                render();
+            });
+        }
+
+        // ── Initial render ────────────────────────────────────────────────────
+        render();
+
+    }());
+</script>
 {% endblock %}
