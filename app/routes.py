@@ -1192,6 +1192,86 @@ def reset_password(token):
 
     return render_template("reset_password.html")
 
+# ── Account routes ────────────────────────────────────────────────────────────
+
+@app.route("/account/stats")
+@login_required
+def account_stats():
+    notes_count  = fileModel.query.filter_by(author_id=current_user.id).count()
+    reviews_count = Review.query.filter_by(user_id=current_user.id).count()
+    quizzes_count = CourseQuiz.query.filter_by(author_id=current_user.id).count()
+    posts_count   = Discussion.query.filter_by(user_id=current_user.id).count()
+    fav_count     = len(_favorite_codes())
+
+    return jsonify({
+        "name":         current_user.name or "",
+        "email":        current_user.email,
+        "member_since": (
+            current_user.created_at.strftime("%B %Y")
+            if current_user.created_at else "—"
+        ),
+        "notes":        notes_count,
+        "reviews":      reviews_count,
+        "quizzes":      quizzes_count,
+        "posts":        posts_count,
+        "favourites":   fav_count,
+    })
+
+
+@app.route("/account/update", methods=["POST"])
+@login_required
+def account_update():
+    name = request.form.get("name", "").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "Name cannot be empty."}), 400
+    if len(name) > 120:
+        return jsonify({"ok": False, "error": "Name must be 120 characters or fewer."}), 400
+    current_user.name = name
+    db.session.commit()
+    return jsonify({"ok": True, "name": name})
+
+
+@app.route("/account/delete", methods=["POST"])
+@login_required
+def account_delete():
+    user = current_user._get_current_object()
+
+    # Anonymise content that should persist
+    for review in user.reviews.all():
+        review.user_id = None
+    for discussion in user.discussions.all():
+        discussion.user_id = None
+
+    # Remove votes cast by this user
+    NoteVote.query.filter_by(user_id=user.id).delete()
+
+    # Remove quiz upvotes — adjust counts on others' quizzes
+    for upvote in user.quiz_upvotes.all():
+        quiz = CourseQuiz.query.get(upvote.quiz_id)
+        if quiz and quiz.author_id != user.id:
+            quiz.upvote_count = max(0, (quiz.upvote_count or 0) - 1)
+        db.session.delete(upvote)
+
+    # Delete notes + dependent rows
+    for note in user.notes.all():
+        NoteVote.query.filter_by(note_id=note.id).delete()
+        NoteReport.query.filter_by(note_id=note.id).delete()
+        db.session.delete(note)
+
+    # Delete quizzes + dependent rows
+    for quiz in user.course_quizzes.all():
+        QuizReport.query.filter_by(quiz_id=quiz.id).delete()
+        QuizUpvote.query.filter_by(quiz_id=quiz.id).delete()
+        db.session.delete(quiz)
+
+    session.pop("favorite_course_codes", None)
+    logout_user()
+    db.session.delete(user)
+    db.session.commit()
+
+    flash("Your account has been deleted.", "info")
+    return redirect(url_for("index"))
+
 def _render_preview(body: str, theme: str,
                     font: str, plain_text: bool = False) -> str:
     """Render the shared note_preview.html template and return an HTML string."""
