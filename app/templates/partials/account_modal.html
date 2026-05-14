@@ -1,0 +1,275 @@
+<div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content">
+
+            <div class="modal-header border-0 pb-0 pe-3 pt-3">
+                <h6 class="modal-title fw-bold text-muted text-uppercase small
+                           letter-spacing-wide ms-1" id="accountModalLabel">
+                    My Account
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body pt-2 px-4 pb-4">
+
+                {# ── Avatar + identity ── #}
+                <div class="text-center mb-4">
+                    <div id="accountAvatar" style="width:72px; height:72px; border-radius:50%;
+                                background: linear-gradient(135deg, #f97316, #153562);
+                                display:flex; align-items:center; justify-content:center;
+                                font-size:1.75rem; font-weight:800; color:#fff;
+                                margin: 0 auto 0.9rem; user-select:none;">
+                        ?
+                    </div>
+                    <h5 class="fw-bold mb-0" id="accountDisplayName">
+                        <span class="placeholder-glow">
+                            <span class="placeholder col-6"></span>
+                        </span>
+                    </h5>
+                    <p class="text-muted small mb-0" id="accountEmail">
+                        <span class="placeholder-glow">
+                            <span class="placeholder col-8"></span>
+                        </span>
+                    </p>
+                    <p class="text-muted" style="font-size:0.72rem;" id="accountMemberSince"></p>
+                </div>
+
+                {# ── Stats grid ── #}
+                <div class="row g-2 mb-4" id="accountStatsGrid">
+                    {# Filled by JS #}
+                    {% for _ in range(5) %}
+                    <div class="col-4">
+                        <div class="text-center p-2 rounded" style="background:var(--bs-tertiary-bg, #f8f9fa);">
+                            <div class="fw-bold placeholder-glow">
+                                <span class="placeholder col-4"></span>
+                            </div>
+                            <div class="text-muted placeholder-glow" style="font-size:0.68rem;">
+                                <span class="placeholder col-6"></span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <hr class="my-3">
+
+                {# ── Edit name ── #}
+                <div class="mb-1">
+                    <h6 class="fw-bold mb-2" style="font-size:0.82rem;">
+                        DISPLAY NAME
+                    </h6>
+                    <form id="accountNameForm" autocomplete="off">
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="accountNameInput" class="form-control" placeholder="Your name"
+                                maxlength="120" required>
+                            <button type="submit" class="btn btn-primary" id="accountNameSaveBtn">
+                                Save
+                            </button>
+                        </div>
+                        <div id="accountNameFeedback" class="mt-1 small" style="min-height: 1.2em;"></div>
+                    </form>
+                </div>
+
+                <hr class="my-3">
+
+                {# ── Danger zone ── #}
+                <div>
+                    <h6 class="fw-bold mb-1 text-danger" style="font-size:0.82rem;">
+                        DANGER ZONE
+                    </h6>
+                    <p class="text-muted mb-3" style="font-size:0.78rem;">
+                        Permanently deletes your account. Notes and quizzes will be
+                        removed. Reviews and discussions are kept anonymously.
+                    </p>
+
+                    {# Step 1: show button #}
+                    <div id="deleteStep1">
+                        <button type="button" class="btn btn-outline-danger btn-sm w-100" id="showDeleteConfirm">
+                            Delete my account…
+                        </button>
+                    </div>
+
+                    {# Step 2: type to confirm #}
+                    <div id="deleteStep2" style="display:none;">
+                        <div class="alert alert-danger py-2 mb-2 small">
+                            <strong>This cannot be undone.</strong>
+                            Type <code>DELETE</code> below to confirm.
+                        </div>
+                        <input type="text" id="deleteConfirmInput" class="form-control form-control-sm mb-2"
+                            placeholder="Type DELETE to confirm" autocomplete="off">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary btn-sm flex-grow-1" id="cancelDeleteBtn">
+                                Cancel
+                            </button>
+                            <form method="POST" action="{{ url_for('account_delete') }}" class="flex-grow-1">
+                                <button type="submit" id="confirmDeleteBtn" class="btn btn-danger btn-sm w-100"
+                                    disabled>
+                                    Confirm Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+
+        const modal = document.getElementById("accountModal");
+        if (!modal) return;
+
+        // ── Element refs ──────────────────────────────────────────────────────
+        const avatar = document.getElementById("accountAvatar");
+        const displayName = document.getElementById("accountDisplayName");
+        const emailEl = document.getElementById("accountEmail");
+        const memberSince = document.getElementById("accountMemberSince");
+        const statsGrid = document.getElementById("accountStatsGrid");
+        const nameInput = document.getElementById("accountNameInput");
+        const nameForm = document.getElementById("accountNameForm");
+        const nameFeedback = document.getElementById("accountNameFeedback");
+        const nameSaveBtn = document.getElementById("accountNameSaveBtn");
+
+        // Delete flow
+        const step1 = document.getElementById("deleteStep1");
+        const step2 = document.getElementById("deleteStep2");
+        const showDeleteBtn = document.getElementById("showDeleteConfirm");
+        const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+        const deleteInput = document.getElementById("deleteConfirmInput");
+        const confirmBtn = document.getElementById("confirmDeleteBtn");
+
+        // ── Stat definitions ──────────────────────────────────────────────────
+        const STATS = [
+            { key: "notes", icon: "📄", label: "Notes" },
+            { key: "reviews", icon: "⭐", label: "Reviews" },
+            { key: "quizzes", icon: "🧠", label: "Quizzes" },
+            { key: "posts", icon: "💬", label: "Posts" },
+            { key: "favourites", icon: "❤️", label: "Favourites" },
+        ];
+
+        // ── Load stats via fetch ──────────────────────────────────────────────
+        function loadStats() {
+            fetch("{{ url_for('account_stats') }}")
+                .then(r => r.json())
+                .then(data => {
+                    // Avatar initials
+                    const initials = (data.name || data.email || "?")
+                        .trim().charAt(0).toUpperCase();
+                    avatar.textContent = initials;
+
+                    // Identity
+                    displayName.textContent = data.name || "—";
+                    emailEl.textContent = data.email || "—";
+                    memberSince.textContent = data.member_since
+                        ? "Member since " + data.member_since
+                        : "";
+
+                    // Pre-fill name input
+                    nameInput.value = data.name || "";
+
+                    // Stats grid — build 5 cells (last row spans if odd)
+                    statsGrid.innerHTML = "";
+                    STATS.forEach(function (s, i) {
+                        const col = document.createElement("div");
+                        col.className = i === 4 ? "col-12" : "col-6";
+
+                        const inner = document.createElement("div");
+                        inner.className = "text-center p-2 rounded";
+                        inner.style.background = "var(--bs-tertiary-bg, #f8f9fa)";
+
+                        inner.innerHTML = `
+                        <div style="font-size:1.25rem;">${s.icon}</div>
+                        <div class="fw-bold" style="font-size:1.1rem; line-height:1.2;">
+                            ${data[s.key] ?? 0}
+                        </div>
+                        <div class="text-muted" style="font-size:0.68rem; letter-spacing:0.04em;">
+                            ${s.label.toUpperCase()}
+                        </div>`;
+
+                        col.appendChild(inner);
+                        statsGrid.appendChild(col);
+                    });
+                })
+                .catch(function () {
+                    displayName.textContent = "Error loading data";
+                });
+        }
+
+        // Reload on open
+        modal.addEventListener("show.bs.modal", function () {
+            // Reset delete flow
+            step1.style.display = "";
+            step2.style.display = "none";
+            if (deleteInput) deleteInput.value = "";
+            if (confirmBtn) confirmBtn.disabled = true;
+            nameFeedback.textContent = "";
+            loadStats();
+        });
+
+        // ── Name update (AJAX) ────────────────────────────────────────────────
+        if (nameForm) {
+            nameForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+                nameFeedback.textContent = "";
+                nameSaveBtn.disabled = true;
+                nameSaveBtn.textContent = "Saving…";
+
+                const body = new FormData();
+                body.append("name", nameInput.value);
+
+                fetch("{{ url_for('account_update') }}", {
+                    method: "POST",
+                    body: body,
+                })
+                    .then(r => r.json())
+                    .then(function (data) {
+                        if (data.ok) {
+                            displayName.textContent = data.name;
+                            avatar.textContent = data.name.charAt(0).toUpperCase();
+                            nameFeedback.textContent = "✓ Name updated.";
+                            nameFeedback.style.color = "var(--bs-success, #198754)";
+                        } else {
+                            nameFeedback.textContent = data.error || "Something went wrong.";
+                            nameFeedback.style.color = "var(--bs-danger, #dc3545)";
+                        }
+                    })
+                    .catch(function () {
+                        nameFeedback.textContent = "Network error — try again.";
+                        nameFeedback.style.color = "var(--bs-danger, #dc3545)";
+                    })
+                    .finally(function () {
+                        nameSaveBtn.disabled = false;
+                        nameSaveBtn.textContent = "Save";
+                    });
+            });
+        }
+
+        // ── Delete flow ───────────────────────────────────────────────────────
+        if (showDeleteBtn) {
+            showDeleteBtn.addEventListener("click", function () {
+                step1.style.display = "none";
+                step2.style.display = "";
+                deleteInput.focus();
+            });
+        }
+
+        if (cancelDeleteBtn) {
+            cancelDeleteBtn.addEventListener("click", function () {
+                step2.style.display = "none";
+                step1.style.display = "";
+                deleteInput.value = "";
+                confirmBtn.disabled = true;
+            });
+        }
+
+        if (deleteInput) {
+            deleteInput.addEventListener("input", function () {
+                confirmBtn.disabled = this.value.trim() !== "DELETE";
+            });
+        }
+
+    }());
+</script>
