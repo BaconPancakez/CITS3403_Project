@@ -20,6 +20,26 @@ source .venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
+    This project requires the following system packages:
+
+    - LibreOffice
+
+    #### Ubuntu/Debian
+    ```bash
+    sudo apt update
+    sudo apt install libreoffice
+    ```
+    #### macOS
+
+    ```bash
+    brew install --cask libreoffice
+    ```
+    #### Windows
+
+    Install LibreOffice manually from:
+    https://www.libreoffice.org/download/download-libreoffice/
+
+
 4. Create a `.env` file in the project root
 ```
 MYAPP_SECRET_KEY=change-me
