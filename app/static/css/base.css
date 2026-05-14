@@ -491,15 +491,19 @@ body {
 
 /* ── Tables ─────────────────────────────────────────────────────────────────── */
 [data-bs-theme="dark"] .table {
-    color: var(--ink);
+    color: #f8f9fa;
+    --bs-table-border-color: var(--line);
+}
+
+[data-bs-theme="dark"] .table {
+    --bs-table-color: #fff;
     --bs-table-border-color: var(--line);
 }
 
 [data-bs-theme="dark"] .table-light,
-[data-bs-theme="dark"] .table-light>*,
-[data-bs-theme="dark"] thead.table-light {
+[data-bs-theme="dark"] .table-light> :not(caption)>* {
     --bs-table-bg: rgba(255, 255, 255, 0.04);
-    color: var(--muted);
+    --bs-table-color: #fff;
     border-color: var(--line);
 }
 

@@ -15,8 +15,23 @@ from app.models import (
     NoteVote, NoteReport, QuizReport,
 )
 
+# ── Allowed upload types ──────────────────────────────────────────────────────
+ALLOWED_NOTE_TYPES = {
+    ".pdf":  "application/pdf",
+    ".txt":  "text/plain",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".odt":  "application/vnd.oasis.opendocument.text",
+}
+
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from flask_login import logout_user
+
+import subprocess
+import tempfile
+import shutil
+import os
+import uuid
+
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -373,35 +388,65 @@ def course_detail(course_code):
                 db.session.commit()
 
         elif form_type == "notes_upload":
-            title   = request.form.get("notes_title",   "").strip()
-            details = request.form.get("notes_details", "").strip()
-            upload  = request.files.get("notes_file")
+            title        = request.form.get("notes_title",       "").strip()
+            details      = request.form.get("notes_details",     "").strip()
+            txt_content  = request.form.get("notes_txt_content", "").strip()
+            txt_filename = request.form.get("notes_txt_filename", "notes.txt").strip()
+            upload       = request.files.get("notes_file")
+
             if not title:
                 flash("Please provide a title for the notes.", "danger")
+
+            elif txt_content:
+                # .txt that was read + optionally edited in the browser
+                db.session.add(fileModel(
+                    course_code=course["code"],
+                    author_id=current_user.id,
+                    title=title,
+                    details=details or None,
+                    filename=txt_filename or "notes.txt",
+                    mimetype="text/plain",
+                    file=txt_content.encode("utf-8"),
+                ))
+                db.session.commit()
+                flash("Notes uploaded.", "success")
+
             elif not upload or not upload.filename:
-                flash("Please choose a PDF file to upload.", "danger")
-            elif not upload.filename.lower().endswith(".pdf"):
-                flash("Only PDF files are supported.", "danger")
+                flash("Please choose a file to upload.", "danger")
+
             else:
-                file_bytes = upload.read()
-                if not file_bytes:
-                    flash("The uploaded file is empty.", "danger")
+                ext = (
+                    "." + upload.filename.rsplit(".", 1)[-1].lower()
+                    if "." in upload.filename else ""
+                )
+                if ext not in ALLOWED_NOTE_TYPES:
+                    flash(
+                        "Unsupported file type. Allowed: PDF, TXT, DOCX, ODT.",
+                        "danger",
+                    )
                 else:
-                    db.session.add(fileModel(
-                        course_code=course["code"],
-                        author_id=current_user.id,
-                        title=title,
-                        details=details or None,
-                        filename=upload.filename,
-                        mimetype=upload.mimetype or "application/pdf",
-                        file=file_bytes,
-                    ))
-                    db.session.commit()
-                    flash("Notes uploaded.", "success")
+                    file_bytes = upload.read()
+                    if not file_bytes:
+                        flash("The uploaded file is empty.", "danger")
+                    else:
+                        db.session.add(fileModel(
+                            course_code=course["code"],
+                            author_id=current_user.id,
+                            title=title,
+                            details=details or None,
+                            filename=upload.filename,
+                            mimetype=ALLOWED_NOTE_TYPES[ext],
+                            file=file_bytes,
+                        ))
+                        db.session.commit()
+                        flash("Notes uploaded.", "success")
 
         elif form_type == "quiz_create":
             question    = request.form.get("quiz_question", "").strip()
-            raw_choices = [request.form.get(f"quiz_choice_{i}", "").strip() for i in range(6)]
+            raw_choices = [
+                request.form.get(f"quiz_choice_{i}", "").strip()
+                for i in range(6)
+            ]
             raw_correct = request.form.get("quiz_correct_row")
             try:
                 correct_row = int(raw_correct) if raw_correct not in (None, "") else -1
@@ -462,7 +507,6 @@ def course_detail(course_code):
             .all()
         )
 
-    # Current user's existing votes so the template can highlight active buttons
     user_votes = {}
     if course_notes:
         user_votes = {
@@ -875,14 +919,28 @@ def quiz_upvote_json(course_code, quiz_id):
 @app.route("/notes/<int:note_id>/file")
 @login_required
 def notes_file(note_id):
-    note = fileModel.query.get_or_404(note_id)
-    download_name = note.filename or f"{note.title or 'notes'}.pdf"
+    note  = fileModel.query.get_or_404(note_id)
+    fname = (note.filename or "").lower()
+    # Only PDF and TXT can be shown inline by the browser natively
+    inline = fname.endswith(".pdf") or fname.endswith(".txt")
     return send_file(
-        BytesIO(note.file),
-        mimetype=note.mimetype or "application/pdf",
-        download_name=download_name,
-        as_attachment=False,
+        BytesIO(bytes(note.file)),
+        mimetype=note.mimetype or "application/octet-stream",
+        download_name=note.filename or f"{note.title or 'notes'}.bin",
+        as_attachment=not inline,
     )
+
+@app.route("/notes/<int:note_id>/download")
+@login_required
+def notes_download(note_id):
+    note = fileModel.query.get_or_404(note_id)
+    return send_file(
+        BytesIO(bytes(note.file)),
+        mimetype=note.mimetype or "application/octet-stream",
+        download_name=note.filename or f"{note.title or 'notes'}.bin",
+        as_attachment=True,
+    )
+
 
 
 def _reset_serializer():
@@ -938,3 +996,274 @@ def reset_password(token):
         return redirect(url_for("login"))
 
     return render_template("reset_password.html")
+
+def _render_preview(body: str, theme: str,
+                    font: str, plain_text: bool = False) -> str:
+    """Render the shared note_preview.html template and return an HTML string."""
+    return render_template(
+        "note_preview.html",
+        body=body,
+        theme=theme,
+        font=font,
+        plain_text=plain_text,
+    )
+
+
+def _txt_preview(raw: bytes, theme: str = "light") -> str:
+    import html as _html
+    text = raw.decode("utf-8", errors="replace")
+    body = f"<pre>{_html.escape(text)}</pre>"
+    return _render_preview(
+        body=body,
+        theme=theme,
+        font="'Courier New', Courier, monospace",
+        plain_text=True,
+    )
+
+
+def _docx_preview(raw: bytes, theme: str = "light") -> str:
+    import html as _html
+    body = ""
+    try:
+        import mammoth
+        result = mammoth.convert_to_html(BytesIO(raw))
+        body   = result.value or ""
+    except ImportError:
+        body = (
+            "<p><em>mammoth is not installed — "
+            "run <code>pip install mammoth</code>.</em></p>"
+        )
+    except Exception as exc:
+        body = f"<p><em>Could not render .docx: {_html.escape(str(exc))}</em></p>"
+
+    if not body:
+        body = "<p><em>Empty document.</em></p>"
+
+    return _render_preview(
+        body=body,
+        theme=theme,
+        font="Georgia, 'Times New Roman', serif",
+    )
+
+
+def _odt_preview(raw: bytes, theme: str = "light") -> str:
+    import html as _html
+    body = ""
+    try:
+        from odf.opendocument import load as odf_load
+        from odf import teletype
+
+        doc   = odf_load(BytesIO(raw))
+        parts = []
+
+        for elem in doc.text.childNodes:
+            if not hasattr(elem, "qname"):
+                continue
+            tag     = elem.qname[1]
+            content = _html.escape(teletype.extractText(elem))
+
+            if tag == "h":
+                lvl = elem.getAttribute("text:outline-level") or "1"
+                parts.append(f"<h{lvl}>{content}</h{lvl}>")
+            elif tag == "p":
+                parts.append(
+                    f"<p>{content if content.strip() else '&nbsp;'}</p>"
+                )
+            elif tag == "list":
+                items = [
+                    f"<li>{_html.escape(teletype.extractText(i)).strip()}</li>"
+                    for i in elem.childNodes
+                    if _html.escape(teletype.extractText(i)).strip()
+                ]
+                if items:
+                    parts.append("<ul>" + "".join(items) + "</ul>")
+            else:
+                if content.strip():
+                    parts.append(f"<p>{content}</p>")
+
+        body = "".join(parts)
+
+    except ImportError:
+        body = (
+            "<p><em>odfpy is not installed — "
+            "run <code>pip install odfpy</code>.</em></p>"
+        )
+    except Exception as exc:
+        body = f"<p><em>Could not render .odt: {_html.escape(str(exc))}</em></p>"
+
+    if not body:
+        body = "<p><em>Empty document.</em></p>"
+
+    return _render_preview(
+        body=body,
+        theme=theme,
+        font="Georgia, 'Times New Roman', serif",
+    )
+
+
+
+# ── Preview route ─────────────────────────────────────────────────────────────
+"""
+@app.route("/notes/<int:note_id>/preview")
+@login_required
+def notes_preview(note_id):
+    note  = fileModel.query.get_or_404(note_id)
+    fname = (note.filename or "").lower().strip()
+    theme = request.args.get("theme", "light")
+    if theme not in ("light", "dark"):
+        theme = "light"
+
+    # PDFs: let the browser handle them natively
+    if fname.endswith(".pdf"):
+        return redirect(url_for("notes_file", note_id=note_id))
+
+    try:
+        raw = bytes(note.file)
+    except Exception:
+        raw = b""
+
+    try:
+        if fname.endswith(".txt"):
+            html_out = _txt_preview(raw, theme)
+        elif fname.endswith(".docx"):
+            html_out = _docx_preview(raw, theme)
+        elif fname.endswith(".odt"):
+            html_out = _odt_preview(raw, theme)
+        else:
+            html_out = _render_preview(
+                body="<p><em>No preview available for this file type.</em></p>",
+                theme=theme,
+                font="sans-serif",
+            )
+    except Exception as exc:
+        # Always return HTML — never let an exception fall through to a download
+        import html as _html
+        html_out = _render_preview(
+            body=f"<p><em>Preview error: {_html.escape(str(exc))}</em></p>",
+            theme=theme,
+            font="sans-serif",
+        )
+
+    return html_out, 200, {"Content-Type": "text/html; charset=utf-8"}
+"""
+
+@app.route("/notes/<int:note_id>/preview")
+@login_required
+def notes_preview(note_id):
+    note  = fileModel.query.get_or_404(note_id)
+    fname = (note.filename or "").lower().strip()
+    theme = request.args.get("theme", "light")
+    if theme not in ("light", "dark"):
+        theme = "light"
+
+    # PDFs render natively — just send the file
+    if fname.endswith(".pdf"):
+        return redirect(url_for("notes_file", note_id=note_id))
+
+    try:
+        raw = bytes(note.file)
+    except Exception as exc:
+        app.logger.error("notes_preview: could not read file bytes: %s", exc)
+        raw = b""
+
+    # DOCX and ODT — try LibreOffice → PDF first (perfect native rendering)
+    # Falls back to HTML if LibreOffice is not installed
+    if fname.endswith(".docx") or fname.endswith(".odt"):
+        ext = "." + fname.rsplit(".", 1)[-1]
+        pdf_bytes = _libreoffice_to_pdf(raw, ext)
+        if pdf_bytes:
+            return send_file(
+                BytesIO(pdf_bytes),
+                mimetype="application/pdf",
+                download_name=fname.rsplit(".", 1)[0] + "_preview.pdf",
+                as_attachment=False,
+            )
+        # LibreOffice not available — fall through to HTML rendering
+
+    # TXT and LibreOffice-unavailable fallback
+    try:
+        if fname.endswith(".txt"):
+            html_out = _txt_preview(raw, theme)
+        elif fname.endswith(".docx"):
+            html_out = _docx_preview(raw, theme)
+        elif fname.endswith(".odt"):
+            html_out = _odt_preview(raw, theme)
+        else:
+            html_out = _render_preview(
+                body="<p><em>No preview available for this file type.</em></p>",
+                theme=theme,
+                font="sans-serif",
+            )
+    except Exception as exc:
+        import html as _html
+        app.logger.error("notes_preview: render failed for %s: %s", fname, exc)
+        html_out = _render_preview(
+            body=f"<p><em>Preview error: {_html.escape(str(exc))}</em></p>",
+            theme=theme,
+            font="sans-serif",
+        )
+
+    return html_out, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+def _libreoffice_to_pdf(raw: bytes, ext: str) -> bytes | None:
+    """
+    Convert a DOCX or ODT file to PDF using LibreOffice headless.
+    Returns PDF bytes on success, None if LibreOffice is not installed.
+
+    Each call gets its own temp directory and LibreOffice user profile so
+    concurrent requests don't interfere with each other.
+    """
+    if not shutil.which("libreoffice"):
+        app.logger.warning(
+            "LibreOffice not found — falling back to HTML preview. "
+            "Install with: sudo apt install libreoffice"
+        )
+        return None
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Unique profile dir per call prevents concurrent-instance collisions
+        profile_dir = os.path.join(tmpdir, f"profile_{uuid.uuid4().hex}")
+        os.makedirs(profile_dir, exist_ok=True)
+
+        input_path = os.path.join(tmpdir, f"document{ext}")
+        with open(input_path, "wb") as f:
+            f.write(raw)
+
+        try:
+            subprocess.run(
+                [
+                    "libreoffice",
+                    f"-env:UserInstallation=file://{profile_dir}",
+                    "--headless",
+                    "--norestore",
+                    "--nofirststartwizard",
+                    "--convert-to", "pdf",
+                    "--outdir", tmpdir,
+                    input_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=30,
+            )
+        except FileNotFoundError:
+            app.logger.warning("LibreOffice binary not found.")
+            return None
+        except subprocess.TimeoutExpired:
+            app.logger.error("LibreOffice conversion timed out for %s", ext)
+            return None
+        except subprocess.CalledProcessError as exc:
+            app.logger.error(
+                "LibreOffice conversion failed for %s: %s",
+                ext, exc.stderr.decode(errors="replace"),
+            )
+            return None
+
+        pdf_path = os.path.join(tmpdir, "document.pdf")
+        if not os.path.isfile(pdf_path):
+            app.logger.error(
+                "LibreOffice ran but produced no output PDF for %s", ext
+            )
+            return None
+
+        with open(pdf_path, "rb") as f:
+            return f.read()

@@ -102,7 +102,7 @@
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
                             data-bs-target="#notesPreviewModal" data-note-title="{{ note.title }}"
                             data-note-details="{{ note.details or '' }}"
-                            data-note-src="{{ url_for('notes_file', note_id=note.id) }}">
+                            data-note-src="{{ url_for('notes_preview', note_id=note.id) }}">
                             👁 Preview
                         </button>
 

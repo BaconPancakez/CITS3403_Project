@@ -1,3 +1,41 @@
 .admin-dashboard .hero-kicker {
     letter-spacing: 0.18em;
 }
+
+/* ── Dark mode: table cells ──────────────────────────────────────────────── */
+[data-bs-theme="dark"] .table td.bg-light,
+[data-bs-theme="dark"] .table th.bg-light,
+[data-bs-theme="dark"] td.bg-light,
+[data-bs-theme="dark"] th.bg-light {
+    background-color: #1a1a30 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-bs-theme="dark"] td.bg-light *,
+[data-bs-theme="dark"] th.bg-light * {
+    color: #e2e8f0 !important;
+    background-color: transparent !important;
+}
+
+[data-bs-theme="dark"] td.bg-light code,
+[data-bs-theme="dark"] th.bg-light code {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Dark mode: hardcoded inline border colours ──────────────────────────── */
+[data-bs-theme="dark"] td[style*="border-right"] {
+    border-right-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Course code cell (replaces bg-light + text-dark) ───────────────────── */
+.course-code-cell {
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+    color: var(--bs-body-color);
+    border-right: 1px solid var(--bs-border-color);
+}
+
+.course-code-cell code {
+    color: var(--bs-body-color);
+    background-color: transparent;
+    font-weight: 700;
+}
