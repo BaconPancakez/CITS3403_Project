@@ -159,13 +159,101 @@ def admin():
         flash("Admins only.", "danger")
         return redirect(url_for("home"))
 
-    students        = User.query.filter_by(role="student").order_by(User.name).all()
-    banned          = BannedUser.query.order_by(BannedUser.created_at.desc()).all()
-    reports         = NoteReport.query.order_by(NoteReport.created_at.desc()).all()
-    quiz_reports    = QuizReport.query.order_by(QuizReport.created_at.desc()).all()
-    system_checks   = _check_system()
+    fav_codes = _favorite_codes()
+    fav_units = _favorite_units()
+    fav_list  = sorted(fav_codes)   # stable list for .in_() queries
 
-    # Count DOCX/ODT notes missing a PDF cache
+    # ── Student filter ────────────────────────────────────────────────────
+    student_filter = request.args.get("student_filter", "all")
+    students_query = User.query.filter_by(role="student")
+
+    if student_filter != "all" and fav_list:
+        if student_filter == "reviewed":
+            uids = {r[0] for r in db.session.query(Review.user_id).filter(
+                Review.course_code.in_(fav_list),
+                Review.user_id.isnot(None),
+            ).distinct()}
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+        elif student_filter == "discussed":
+            uids = {r[0] for r in db.session.query(Discussion.user_id).filter(
+                Discussion.course_code.in_(fav_list),
+                Discussion.user_id.isnot(None),
+            ).distinct()}
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+        elif student_filter == "uploaded":
+            uids = {r[0] for r in db.session.query(fileModel.author_id).filter(
+                fileModel.course_code.in_(fav_list),
+            ).distinct()}
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+        elif student_filter == "any":
+            uids = set()
+            for (uid,) in db.session.query(Review.user_id).filter(
+                Review.course_code.in_(fav_list),
+                Review.user_id.isnot(None),
+            ).distinct():
+                uids.add(uid)
+            for (uid,) in db.session.query(Discussion.user_id).filter(
+                Discussion.course_code.in_(fav_list),
+                Discussion.user_id.isnot(None),
+            ).distinct():
+                uids.add(uid)
+            for (uid,) in db.session.query(fileModel.author_id).filter(
+                fileModel.course_code.in_(fav_list),
+            ).distinct():
+                uids.add(uid)
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+    students = students_query.order_by(User.name).all()
+
+    # Build interaction badge data — 3 bulk queries regardless of student count
+    student_interactions = {s.id: set() for s in students}
+    if fav_list and students:
+        sid_list = [s.id for s in students]
+        for (uid,) in db.session.query(Review.user_id).filter(
+            Review.user_id.in_(sid_list),
+            Review.course_code.in_(fav_list),
+            Review.user_id.isnot(None),
+        ).distinct():
+            student_interactions[uid].add("reviewed")
+        for (uid,) in db.session.query(Discussion.user_id).filter(
+            Discussion.user_id.in_(sid_list),
+            Discussion.course_code.in_(fav_list),
+            Discussion.user_id.isnot(None),
+        ).distinct():
+            student_interactions[uid].add("discussed")
+        for (uid,) in db.session.query(fileModel.author_id).filter(
+            fileModel.author_id.in_(sid_list),
+            fileModel.course_code.in_(fav_list),
+        ).distinct():
+            student_interactions[uid].add("uploaded")
+
+    # ── Report filter ─────────────────────────────────────────────────────
+    report_filter      = request.args.get("report_filter", "all")
+    reports_query      = NoteReport.query
+    quiz_reports_query = QuizReport.query
+
+    if report_filter == "favorites" and fav_list:
+        note_sq = db.session.query(fileModel.id).filter(
+            fileModel.course_code.in_(fav_list)
+        ).subquery()
+        reports_query = reports_query.filter(NoteReport.note_id.in_(note_sq))
+
+        quiz_sq = db.session.query(CourseQuiz.id).filter(
+            CourseQuiz.course_code.in_(fav_list)
+        ).subquery()
+        quiz_reports_query = quiz_reports_query.filter(
+            QuizReport.quiz_id.in_(quiz_sq)
+        )
+
+    reports      = reports_query.order_by(NoteReport.created_at.desc()).all()
+    quiz_reports = quiz_reports_query.order_by(QuizReport.created_at.desc()).all()
+
+    banned        = BannedUser.query.order_by(BannedUser.created_at.desc()).all()
+    system_checks = _check_system()
+
     unconverted_count = fileModel.query.filter(
         fileModel.pdf_cache.is_(None),
         fileModel.filename.ilike("%.docx") |
@@ -174,12 +262,16 @@ def admin():
 
     return render_template(
         "admin.html",
-        courses=FEATURED_COURSES,
-        favorite_units=_favorite_units(),
+        courses=fav_units,
+        favorite_units=fav_units,
+        favorite_codes=fav_codes,
         students=students,
+        student_interactions=student_interactions,
+        student_filter=student_filter,
         banned=banned,
         reports=reports,
         quiz_reports=quiz_reports,
+        report_filter=report_filter,
         system_checks=system_checks,
         unconverted_count=unconverted_count,
     )
