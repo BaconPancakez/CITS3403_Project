@@ -1,4 +1,5 @@
-# CITS3403_Project UUUA Study Hub 
+# UUUA Study Hub 
+For CITS3403 Agile Web Development
 
 ## Purpose
 UUUA is a student-focused web application designed to support UWA students academically through collaborative resource sharing and course transparency.
@@ -21,7 +22,7 @@ The application is designed to improve accessibility to study materials, increas
 |--------|------|-----------------|
 | -- | Name | --- |
 | 24217338| Rosie Wang | R89097 |
-| -- | Name | --- |
+| 25303739  | Qi Ming Seng | BaconPancakez |
 | -- | Name | --- |
 
 ### Setup
