@@ -1,67 +1,188 @@
-<div
-    class="modal fade"
-    id="uploadNotesModal"
-    tabindex="-1"
-    aria-labelledby="uploadNotesModalLabel"
-    aria-hidden="true"
->
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal fade" id="uploadNotesModal" tabindex="-1" aria-labelledby="uploadNotesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" id="uploadNotesForm" novalidate>
+                <input type="hidden" name="form_type" value="notes_upload">
+                <input type="hidden" name="notes_txt_content" id="notesTxtContent">
+                <input type="hidden" name="notes_txt_filename" id="notesTxtFilename">
+
                 <div class="modal-header">
-                    <h5 class="modal-title" id="uploadNotesModalLabel">Upload notes</h5>
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Close"
-                    ></button>
+                    <h5 class="modal-title" id="uploadNotesModalLabel">
+                        Upload Notes
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+
                 <div class="modal-body">
-                    <input type="hidden" name="form_type" value="notes_upload">
+
+                    {# ── Step indicator ── #}
+                    <div class="d-flex align-items-center gap-2 mb-4" id="uploadStepRow">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill bg-primary" id="stepBadge1" style="width:24px;height:24px;
+                                  line-height:16px;font-size:0.75rem;">1</span>
+                            <span class="small fw-semibold" id="stepLabel1">
+                                File Details
+                            </span>
+                        </div>
+                        <div class="flex-grow-1 border-top" style="opacity:.3;"></div>
+                        <div class="d-flex align-items-center gap-2" id="step2Indicator" style="opacity:.35;
+                             transition:opacity .3s ease;">
+                            <span class="badge rounded-pill bg-secondary" id="stepBadge2" style="width:24px;height:24px;
+                                  line-height:16px;font-size:0.75rem;">2</span>
+                            <span class="small fw-semibold text-muted" id="stepLabel2">
+                                Review &amp; Edit
+                            </span>
+                        </div>
+                    </div>
+
+                    {# ── Step 1: metadata + file picker ── #}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="notesTitle">Title</label>
+                        <input type="text" name="notes_title" id="notesTitle" class="form-control"
+                            placeholder="e.g. Week 3 Lecture Notes" required>
+                    </div>
 
                     <div class="mb-3">
-                        <label class="form-label" for="notes-title">Title</label>
-                        <input
-                            class="form-control"
-                            id="notes-title"
-                            name="notes_title"
-                            placeholder="Week 1 Notes"
-                            required
-                        />
+                        <label class="form-label fw-semibold" for="notesDetails">
+                            Description
+                            <span class="text-muted fw-normal">(optional)</span>
+                        </label>
+                        <textarea name="notes_details" id="notesDetails" class="form-control" rows="2"
+                            placeholder="What topics does this cover?"></textarea>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label" for="notes-details">Details</label>
-                        <textarea
-                            class="form-control"
-                            id="notes-details"
-                            name="notes_details"
-                            rows="3"
-                            placeholder="Topics covered, format, or useful tips"
-                        ></textarea>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold" for="notesFile">File</label>
+                        <input type="file" name="notes_file" id="notesFile" class="form-control"
+                            accept=".pdf,.txt,.docx,.odt">
+                        <div class="form-text">
+                            Supported formats: PDF, TXT, DOCX, ODT
+                        </div>
                     </div>
 
-                    <div class="mb-2">
-                        <label class="form-label" for="notes-file">PDF file</label>
-                        <input
-                            class="form-control"
-                            type="file"
-                            id="notes-file"
-                            name="notes_file"
-                            accept="application/pdf"
-                            required
-                        />
+                    {# ── Step 2: TXT editor (hidden until .txt selected) ── #}
+                    <div id="txtEditorSection" style="display:none; margin-top:1.25rem;">
+
+                        <div class="alert alert-info d-flex gap-2 align-items-start
+                                    py-2 mb-3" role="alert">
+                            <span style="flex-shrink:0;">✏️</span>
+                            <div class="small">
+                                <strong>Text file detected.</strong>
+                                Review and edit the content below before uploading.
+                                Changes you make here are what will be saved.
+                            </div>
+                        </div>
+
+                        <div class="mb-0">
+                            <div class="d-flex justify-content-between
+                                        align-items-baseline mb-1">
+                                <label class="form-label fw-semibold mb-0" for="txtEditorArea">Content</label>
+                                <span class="text-muted small" id="txtCharCount"></span>
+                            </div>
+                            <textarea id="txtEditorArea" class="form-control font-monospace" rows="14"
+                                placeholder="File content will appear here…" style="font-size:0.83rem;
+                                             line-height:1.65;
+                                             resize:vertical;"></textarea>
+                        </div>
+
                     </div>
-                    <p class="small text-muted mb-0">Only PDF files are supported.</p>
-                </div>
+
+                </div>{# /modal-body #}
+
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        Cancel
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="uploadSubmitBtn">
+                        Upload Notes
                     </button>
-                    <button type="submit" class="btn btn-primary">Upload</button>
                 </div>
+
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        const fileInput = document.getElementById("notesFile");
+        const txtSection = document.getElementById("txtEditorSection");
+        const txtArea = document.getElementById("txtEditorArea");
+        const txtContent = document.getElementById("notesTxtContent");
+        const txtFname = document.getElementById("notesTxtFilename");
+        const charCount = document.getElementById("txtCharCount");
+        const step2 = document.getElementById("step2Indicator");
+        const badge2 = document.getElementById("stepBadge2");
+        const form = document.getElementById("uploadNotesForm");
+        const modal = document.getElementById("uploadNotesModal");
+
+        if (!fileInput) return;
+
+        // ── Show / hide TXT editor based on selected file ─────────────────────────
+        fileInput.addEventListener("change", function () {
+            const file = this.files[0];
+            if (!file) {
+                hideTxtEditor();
+                return;
+            }
+            if (file.name.toLowerCase().endsWith(".txt")) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    txtArea.value = e.target.result;
+                    updateCharCount();
+                    showTxtEditor();
+                    // Scroll editor into view smoothly
+                    txtSection.scrollIntoView({
+                        behavior: "smooth", block: "nearest"
+                    });
+                };
+                reader.onerror = function () {
+                    txtArea.value = "";
+                    showTxtEditor();
+                };
+                reader.readAsText(file);
+            } else {
+                hideTxtEditor();
+            }
+        });
+
+        function showTxtEditor() {
+            txtSection.style.display = "block";
+            step2.style.opacity = "1";
+            badge2.className = "badge rounded-pill bg-primary";
+        }
+
+        function hideTxtEditor() {
+            txtSection.style.display = "none";
+            step2.style.opacity = "0.35";
+            badge2.className = "badge rounded-pill bg-secondary";
+            txtContent.value = "";
+            txtFname.value = "";
+        }
+
+        // ── Live character count ──────────────────────────────────────────────────
+        txtArea.addEventListener("input", updateCharCount);
+
+        function updateCharCount() {
+            const n = txtArea.value.length;
+            charCount.textContent = n.toLocaleString() + " chars";
+        }
+
+        // ── On submit: copy edited text to hidden fields if in TXT mode ───────────
+        form.addEventListener("submit", function () {
+            const file = fileInput.files[0];
+            if (file && file.name.toLowerCase().endsWith(".txt")
+                && txtSection.style.display !== "none") {
+                txtContent.value = txtArea.value;
+                txtFname.value = file.name;
+            }
+        });
+
+        // ── Reset everything when modal closes ────────────────────────────────────
+        if (modal) {
+            modal.addEventListener("hidden.bs.modal", function () {
+                form.reset();
+                hideTxtEditor();
+                charCount.textContent = "";
+            });
+        }
+    }());
+</script>

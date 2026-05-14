@@ -87,6 +87,7 @@ class fileModel(TimestampMixin, db.Model):
     filename    = db.Column(db.String(255), nullable=True)
     mimetype    = db.Column(db.String(100), nullable=True)
     file        = db.Column(db.BLOB,        nullable=False)
+    pdf_cache   = db.Column(db.BLOB,        nullable=True)  # ← pre-converted PDF
 
     author = db.relationship("User", backref=db.backref("notes", lazy="dynamic"))
 
@@ -94,7 +95,6 @@ class fileModel(TimestampMixin, db.Model):
     def display_name(self):
         return self.author.name if self.author else "Anonymous"
 
-    # ── Vote helpers (backed by NoteVote.votes backref) ───────────────────────
     @property
     def upvotes(self):
         return self.votes.filter_by(value=1).count()
@@ -106,6 +106,14 @@ class fileModel(TimestampMixin, db.Model):
     @property
     def vote_score(self):
         return self.upvotes - self.downvotes
+
+    @property
+    def has_preview(self):
+        """True if a native preview is available immediately."""
+        fname = (self.filename or "").lower()
+        if fname.endswith(".pdf") or fname.endswith(".txt"):
+            return True
+        return self.pdf_cache is not None
 
 
 class NoteVote(db.Model):

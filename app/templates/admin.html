@@ -4,6 +4,81 @@
 
 {% block page_css %}
 <link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet" />
+<style>
+    /* ── Bulk-action bar ───────────────────────────────────────────────── */
+    .bulk-bar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        display: none;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 1rem;
+        background: var(--bs-body-bg, #fff);
+        border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+    }
+
+    .bulk-bar.visible {
+        display: flex;
+    }
+
+    .bulk-bar .bulk-count {
+        font-weight: 600;
+        font-size: 0.9rem;
+        flex: 1;
+    }
+
+    /* ── Row highlight when checked ────────────────────────────────────── */
+    tr.row-selected {
+        background-color: rgba(249, 115, 22, 0.07) !important;
+    }
+
+    /* ── Filter bar ────────────────────────────────────────────────────── */
+    .filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        padding: 0.6rem 0.9rem;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 10px;
+        margin-bottom: 1.1rem;
+    }
+
+    .filter-bar .filter-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--bs-secondary-color, #6c757d);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    /* ── Interaction badges ─────────────────────────────────────────────── */
+    .ixn-badge {
+        font-size: 0.6rem;
+        font-weight: 600;
+        padding: 0.18em 0.45em;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+
+    /* ── Course card summary ─────────────────────────────────────────────────── */
+    .course-summary {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 0;
+        font-size: 0.85rem;
+        line-height: 1.55;
+    }
+    }
+</style>
 {% endblock %}
 
 {% block body_class %}admin-dashboard{% endblock %}
@@ -11,7 +86,9 @@
 {% block content %}
 <header class="hero-banner border-bottom">
     <div class="hero-overlay">
-        <h1 id="welcome_header" class="hero-title m-0">Welcome, {{ current_user.name or 'Admin' }}!</h1>
+        <h1 id="welcome_header" class="hero-title m-0">
+            Welcome, {{ current_user.name or 'Admin' }}!
+        </h1>
         <p class="hero-kicker mb-3 fs-5">What are you up to today?</p>
     </div>
 </header>
@@ -24,6 +101,9 @@
             <button class="nav-link active" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses-panel"
                 type="button" role="tab" aria-controls="courses-panel" aria-selected="true">
                 📚 Courses
+                {% if courses %}
+                <span class="badge bg-secondary ms-1">{{ courses | length }}</span>
+                {% endif %}
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -45,30 +125,132 @@
                 {% endif %}
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-panel" type="button"
+                role="tab" aria-controls="system-panel" aria-selected="false">
+                ⚙️ System
+                {% if not system_checks.values() | selectattr('ok') | list | length == system_checks | length %}
+                <span class="badge bg-danger ms-1">!</span>
+                {% endif %}
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="adminTabsContent">
 
-        {# ── Tab 1: Courses ── #}
+        {# ══════════════════════════════════════════════════════════════════
+        Tab 1: Courses — admin's favourited courses
+        ══════════════════════════════════════════════════════════════════ #}
         <div class="tab-pane fade show active" id="courses-panel" role="tabpanel" aria-labelledby="courses-tab">
+
+            {% if courses %}
             <div class="assigned_container row g-3">
                 {% for course in courses %}
                 <div class="col-12 col-md-6 col-lg-4">
                     <div class="card h-100">
                         <div class="card-body">
-                            <h5 class="card-title">{{ course.code }} {{ course.title }}</h5>
-                            <p class="card-text">{{ course.summary }}</p>
+                            <h5 class="card-title">
+                                {{ course.code }}
+                                <span class="fw-normal text-muted fs-6">
+                                    {{ course.title }}
+                                </span>
+                            </h5>
+                            <p class="card-text text-muted course-summary" title="{{ course.summary }}">
+                                {{ course.summary | truncate(100) }}
+                            </p>
                             <a href="{{ url_for('course_detail', course_code=course.code) }}"
-                                class="btn btn-primary">View course</a>
+                                class="btn btn-primary btn-sm">
+                                View course
+                            </a>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-        </div>
 
-        {# ── Tab 2: Students ── #}
+            {% else %}
+            <div class="text-center py-5">
+                <div class="mb-3" style="font-size:3rem;">⭐</div>
+                <h5 class="fw-semibold mb-2">No favourited courses yet</h5>
+                <p class="text-muted small mb-3">
+                    Favourite the courses you manage from the course list.
+                    They will appear here so you can quickly navigate to them,
+                    and unlock interaction filtering in the Students and Reports tabs.
+                </p>
+                <a href="{{ url_for('course_list') }}" class="btn btn-primary btn-sm">
+                    Browse Courses →
+                </a>
+            </div>
+            {% endif %}
+
+        </div>{# /courses-panel #}
+
+        {# ══════════════════════════════════════════════════════════════════
+        Tab 2: Students
+        ══════════════════════════════════════════════════════════════════ #}
         <div class="tab-pane fade" id="students-panel" role="tabpanel" aria-labelledby="students-tab">
+
+            {# ── Filter bar ── #}
+            <form method="GET" action="{{ url_for('admin') }}" class="filter-bar">
+                <input type="hidden" name="tab" value="students">
+                {# Preserve report filter across submissions #}
+                {% if report_filter != "all" %}
+                <input type="hidden" name="report_filter" value="{{ report_filter }}">
+                {% endif %}
+
+                <span class="filter-label">Filter students:</span>
+
+                <select name="student_filter" class="form-select form-select-sm" style="width: auto; min-width: 240px;"
+                    onchange="this.form.submit()">
+                    <option value="all" {% if student_filter=='all' %}selected{% endif %}>
+                        All students
+                    </option>
+                    {% if favorite_codes %}
+                    <option value="any" {% if student_filter=='any' %}selected{% endif %}>
+                        ⭐ Any interaction (favourited courses)
+                    </option>
+                    <option value="reviewed" {% if student_filter=='reviewed' %}selected{% endif %}>
+                        ⭐ Reviewed a favourited course
+                    </option>
+                    <option value="discussed" {% if student_filter=='discussed' %}selected{% endif %}>
+                        ⭐ Discussed in a favourited course
+                    </option>
+                    <option value="uploaded" {% if student_filter=='uploaded' %}selected{% endif %}>
+                        ⭐ Uploaded to a favourited course
+                    </option>
+                    {% endif %}
+                </select>
+
+                {% if not favorite_codes %}
+                <span class="text-muted small">
+                    Favourite courses to unlock interaction filters.
+                </span>
+                {% endif %}
+
+                {% if student_filter != "all" %}
+                <a href="{{ url_for('admin', tab='students', report_filter=report_filter if report_filter != 'all' else None) }}"
+                    class="btn btn-sm btn-outline-secondary ms-auto">
+                    ✕ Clear filter
+                </a>
+                {% endif %}
+            </form>
+
+            {# ── Active filter summary ── #}
+            {% if student_filter != "all" %}
+            <div class="alert alert-info py-2 mb-3 small">
+                Showing <strong>{{ students | length }}</strong>
+                student{{ 's' if students | length != 1 }}
+                {% if student_filter == 'any' %}
+                with any interaction across your favourited courses.
+                {% elif student_filter == 'reviewed' %}
+                who reviewed a favourited course.
+                {% elif student_filter == 'discussed' %}
+                who discussed in a favourited course.
+                {% elif student_filter == 'uploaded' %}
+                who uploaded to a favourited course.
+                {% endif %}
+            </div>
+            {% endif %}
 
             <div class="d-flex align-items-center gap-2 mb-3">
                 <h4 class="mb-0">Registered Students</h4>
@@ -83,15 +265,45 @@
                             <th>#</th>
                             <th>Name</th>
                             <th>Email</th>
+                            {% if favorite_codes %}
+                            <th>Activity on your courses</th>
+                            {% endif %}
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for student in students %}
+                        {% set ixn = student_interactions.get(student.id, []) %}
                         <tr>
                             <td class="text-muted small">{{ student.id }}</td>
                             <td>{{ student.name or "—" }}</td>
                             <td>{{ student.email }}</td>
+                            {% if favorite_codes %}
+                            <td>
+                                {% if ixn %}
+                                {% if 'reviewed' in ixn %}
+                                <span class="badge bg-info text-dark ixn-badge me-1"
+                                    title="Reviewed at least one of your favourited courses">
+                                    reviewed
+                                </span>
+                                {% endif %}
+                                {% if 'discussed' in ixn %}
+                                <span class="badge bg-primary ixn-badge me-1"
+                                    title="Discussed in at least one of your favourited courses">
+                                    discussed
+                                </span>
+                                {% endif %}
+                                {% if 'uploaded' in ixn %}
+                                <span class="badge bg-success ixn-badge me-1"
+                                    title="Uploaded notes to at least one of your favourited courses">
+                                    uploaded
+                                </span>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
                             <td class="text-end">
                                 <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
                                     data-bs-target="#banModal{{ student.id }}">
@@ -127,7 +339,8 @@
                                 </p>
                                 <div class="mb-3">
                                     <label for="reason{{ student.id }}" class="form-label">
-                                        Reason <span class="text-muted">(optional)</span>
+                                        Reason
+                                        <span class="text-muted">(optional)</span>
                                     </label>
                                     <textarea id="reason{{ student.id }}" name="reason" class="form-control" rows="2"
                                         placeholder="e.g. Repeated policy violations"></textarea>
@@ -146,7 +359,13 @@
             {% endfor %}
 
             {% else %}
-            <p class="text-muted fst-italic">No registered students found.</p>
+            <p class="text-muted fst-italic">
+                {% if student_filter != "all" %}
+                No students match this filter.
+                {% else %}
+                No registered students found.
+                {% endif %}
+            </p>
             {% endif %}
 
             {# Banned users table #}
@@ -197,22 +416,86 @@
 
         </div>{# /students-panel #}
 
-        {# ── Tab 3: Reports ── #}
+        {# ══════════════════════════════════════════════════════════════════
+        Tab 3: Reports
+        ══════════════════════════════════════════════════════════════════ #}
         <div class="tab-pane fade" id="reports-panel" role="tabpanel" aria-labelledby="reports-tab">
 
-            {# ── Note Reports ── #}
-            <div class="d-flex align-items-center gap-2 mb-3">
+            {# ── Report filter bar ── #}
+            <div class="filter-bar mb-3">
+                <span class="filter-label">Show reports:</span>
+
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="{{ url_for('admin',
+                                tab='reports',
+                                report_filter='all',
+                                student_filter=student_filter if student_filter != 'all' else None) }}"
+                        class="btn {% if report_filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        All reports
+                    </a>
+                    {% if favorite_codes %}
+                    <a href="{{ url_for('admin',
+                                tab='reports',
+                                report_filter='favorites',
+                                student_filter=student_filter if student_filter != 'all' else None) }}"
+                        class="btn {% if report_filter == 'favorites' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        ⭐ Favourited courses only
+                    </a>
+                    {% endif %}
+                </div>
+
+                {% if not favorite_codes %}
+                <span class="text-muted small">
+                    Favourite courses to filter reports by course.
+                </span>
+                {% endif %}
+
+                {% if report_filter == "favorites" %}
+                <span class="text-muted small ms-auto">
+                    Showing reports for:
+                    {% for code in favorite_codes | sort %}
+                    <code>{{ code }}</code>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </span>
+                {% endif %}
+            </div>
+
+            {# ── Note Reports ─────────────────────────────────────────────── #}
+            <div class="d-flex align-items-center gap-2 mb-2">
                 <h4 class="mb-0">Reported Notes</h4>
-                <span class="badge {% if reports %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                <span class="badge
+                    {% if reports %}bg-warning text-dark{% else %}bg-success{% endif %}">
                     {{ reports | length }}
                 </span>
             </div>
 
             {% if reports %}
+
+            {# Bulk action bar — note reports #}
+            <div class="bulk-bar" id="noteBulkBar">
+                <span class="bulk-count" id="noteBulkCount">0 selected</span>
+                <form method="POST" action="{{ url_for('bulk_note_reports') }}" id="noteBulkForm">
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="bulk_action" value="dismiss"
+                            class="btn btn-sm btn-outline-secondary">
+                            ✕ Dismiss Selected
+                        </button>
+                        <button type="submit" name="bulk_action" value="delete_notes" class="btn btn-sm btn-danger"
+                            onclick="return confirm('Delete all selected notes and their reports?')">
+                            🗑 Delete Selected Notes
+                        </button>
+                    </div>
+                </form>
+                <button type="button" class="btn btn-sm btn-link text-muted ms-auto" id="noteBulkClear">Clear</button>
+            </div>
+
             <div class="table-responsive mb-5">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover align-middle" id="noteReportsTable">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:36px;">
+                                <input type="checkbox" class="form-check-input" id="noteSelectAll" title="Select all">
+                            </th>
                             <th>Note</th>
                             <th>Course</th>
                             <th>Author</th>
@@ -224,16 +507,29 @@
                     </thead>
                     <tbody>
                         {% for report in reports %}
-                        <tr>
+                        <tr data-report-id="{{ report.id }}">
+                            <td>
+                                <input type="checkbox" class="form-check-input note-report-cb" value="{{ report.id }}"
+                                    aria-label="Select report {{ report.id }}">
+                            </td>
                             <td>
                                 <span class="fw-semibold">{{ report.note.title }}</span>
-                                <div class="mt-1">
-                                    <button type="button" class="btn btn-sm btn-outline-info mt-1" data-bs-toggle="modal"
+                                {% if report.note.filename %}
+                                <span class="badge bg-secondary ms-1 text-uppercase" style="font-size:0.6rem;">
+                                    {{ report.note.filename.rsplit('.', 1)[-1] }}
+                                </span>
+                                {% endif %}
+                                <div class="mt-1 d-flex gap-1 flex-wrap">
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
                                         data-bs-target="#notesPreviewModal" data-note-title="{{ report.note.title }}"
                                         data-note-details="{{ report.note.details or '' }}"
-                                        data-note-src="{{ url_for('notes_file', note_id=report.note.id) }}">
-                                        👁 View PDF
+                                        data-note-src="{{ url_for('notes_preview', note_id=report.note.id) }}">
+                                        👁 View Note
                                     </button>
+                                    <a href="{{ url_for('notes_download', note_id=report.note.id) }}"
+                                        class="btn btn-sm btn-outline-primary">
+                                        ⬇ Download
+                                    </a>
                                 </div>
                             </td>
                             <td>
@@ -241,6 +537,9 @@
                                     class="text-decoration-none">
                                     <code>{{ report.note.course_code }}</code>
                                 </a>
+                                {% if report.note.course_code in favorite_codes %}
+                                <span class="ms-1" title="Your favourited course">⭐</span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if report.note.author %}
@@ -266,34 +565,25 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-flex gap-1 justify-content-end flex-wrap">
-
-                                    {# Dismiss this report only #}
                                     <form method="POST" action="{{ url_for('dismiss_report', report_id=report.id) }}">
                                         <button type="submit" class="btn btn-outline-secondary btn-sm"
                                             title="Dismiss without action">
                                             ✕ Dismiss
                                         </button>
                                     </form>
-
-                                    {# Remove the note (clears all its reports) #}
                                     <form method="POST" action="{{ url_for('delete_note', note_id=report.note.id) }}"
                                         onsubmit="return confirm('Remove note and all its reports?')">
                                         <input type="hidden" name="_next" value="{{ url_for('admin', tab='reports') }}">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            title="Delete note and all related reports">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
                                             🗑 Remove Note
                                         </button>
                                     </form>
-
-                                    {# Ban the author #}
                                     {% if report.note.author and report.note.author.role != 'admin' %}
                                     <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal"
-                                        data-bs-target="#banFromNoteReportModal{{ report.id }}"
-                                        title="Ban the note's author">
+                                        data-bs-target="#banFromNoteReportModal{{ report.id }}">
                                         🚫 Ban Author
                                     </button>
                                     {% endif %}
-
                                 </div>
                             </td>
                         </tr>
@@ -302,7 +592,7 @@
                 </table>
             </div>
 
-            {# Ban-from-note-report confirmation modals #}
+            {# Ban-from-note-report modals #}
             {% for report in reports %}
             {% if report.note.author and report.note.author.role != 'admin' %}
             <div class="modal fade" id="banFromNoteReportModal{{ report.id }}" tabindex="-1" aria-hidden="true">
@@ -344,24 +634,53 @@
             {% endfor %}
 
             {% else %}
-            <p class="text-muted fst-italic mb-5">No note reports to review. 🎉</p>
+            <p class="text-muted fst-italic mb-5">
+                {% if report_filter == "favorites" %}
+                No note reports for your favourited courses. 🎉
+                {% else %}
+                No note reports to review. 🎉
+                {% endif %}
+            </p>
             {% endif %}
 
-            {# ── Quiz Reports ── #}
+            {# ── Quiz Reports ─────────────────────────────────────────────── #}
             <hr class="my-4">
 
-            <div class="d-flex align-items-center gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
                 <h4 class="mb-0">Reported Quizzes</h4>
-                <span class="badge {% if quiz_reports %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                <span class="badge
+                    {% if quiz_reports %}bg-warning text-dark{% else %}bg-success{% endif %}">
                     {{ quiz_reports | length }}
                 </span>
             </div>
 
             {% if quiz_reports %}
+
+            {# Bulk action bar — quiz reports #}
+            <div class="bulk-bar" id="quizBulkBar">
+                <span class="bulk-count" id="quizBulkCount">0 selected</span>
+                <form method="POST" action="{{ url_for('bulk_quiz_reports') }}" id="quizBulkForm">
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="bulk_action" value="dismiss"
+                            class="btn btn-sm btn-outline-secondary">
+                            ✕ Dismiss Selected
+                        </button>
+                        <button type="submit" name="bulk_action" value="delete_quizzes" class="btn btn-sm btn-danger"
+                            onclick="return confirm('Delete all selected quizzes and their reports?')">
+                            🗑 Delete Selected Quizzes
+                        </button>
+                    </div>
+                </form>
+                <button type="button" class="btn btn-sm btn-link text-muted ms-auto" id="quizBulkClear">Clear</button>
+            </div>
+
             <div class="table-responsive mb-4">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover align-middle" id="quizReportsTable">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:36px;">
+                                <input type="checkbox" class="form-check-input" id="quizSelectAll" title="Select all">
+                            </th>
                             <th>Question</th>
                             <th>Course</th>
                             <th>Author</th>
@@ -373,26 +692,33 @@
                     </thead>
                     <tbody>
                         {% for report in quiz_reports %}
-                        <tr>
+                        <tr data-report-id="{{ report.id }}">
+                            <td>
+                                <input type="checkbox" class="form-check-input quiz-report-cb" value="{{ report.id }}"
+                                    aria-label="Select report {{ report.id }}">
+                            </td>
                             <td>
                                 <span class="fw-semibold small">
                                     {{ report.quiz.question | truncate(80) }}
                                 </span>
-                                {# Expandable choices preview #}
                                 <div>
-                                    <button class="btn btn-sm btn-link p-0 text-decoration-none small" type="button"
-                                        data-bs-toggle="collapse" data-bs-target="#quizPreview{{ report.id }}">
+                                    <button class="btn btn-sm btn-link p-0
+                                                   text-decoration-none small" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#quizPreview{{ report.id }}">
                                         View choices ▾
                                     </button>
                                 </div>
                                 <div class="collapse" id="quizPreview{{ report.id }}">
-                                    <ul class="list-unstyled small mt-1 mb-0 ps-2 border-start">
+                                    <ul class="list-unstyled small mt-1 mb-0
+                                               ps-2 border-start">
                                         {% for choice in report.quiz.choices %}
                                         <li
                                             class="{% if loop.index0 == report.quiz.correct_index %}text-success fw-bold{% endif %}">
                                             {{ loop.index }}. {{ choice }}
                                             {% if loop.index0 == report.quiz.correct_index %}
-                                            <span class="badge bg-success ms-1">Correct</span>
+                                            <span class="badge bg-success ms-1">
+                                                Correct
+                                            </span>
                                             {% endif %}
                                         </li>
                                         {% endfor %}
@@ -404,6 +730,9 @@
                                     class="text-decoration-none">
                                     <code>{{ report.quiz.course_code }}</code>
                                 </a>
+                                {% if report.quiz.course_code in favorite_codes %}
+                                <span class="ms-1" title="Your favourited course">⭐</span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if report.quiz.author %}
@@ -429,8 +758,6 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-flex gap-1 justify-content-end flex-wrap">
-
-                                    {# Dismiss this report only #}
                                     <form method="POST"
                                         action="{{ url_for('dismiss_quiz_report', report_id=report.id) }}">
                                         <button type="submit" class="btn btn-outline-secondary btn-sm"
@@ -438,26 +765,19 @@
                                             ✕ Dismiss
                                         </button>
                                     </form>
-
-                                    {# Remove the quiz (clears all its reports) #}
                                     <form method="POST" action="{{ url_for('delete_quiz', quiz_id=report.quiz.id) }}"
                                         onsubmit="return confirm('Remove quiz and all its reports?')">
                                         <input type="hidden" name="_next" value="{{ url_for('admin', tab='reports') }}">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            title="Delete quiz and all related reports">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
                                             🗑 Remove Quiz
                                         </button>
                                     </form>
-
-                                    {# Ban the author #}
                                     {% if report.quiz.author and report.quiz.author.role != 'admin' %}
                                     <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal"
-                                        data-bs-target="#banFromQuizReportModal{{ report.id }}"
-                                        title="Ban the quiz author">
+                                        data-bs-target="#banFromQuizReportModal{{ report.id }}">
                                         🚫 Ban Author
                                     </button>
                                     {% endif %}
-
                                 </div>
                             </td>
                         </tr>
@@ -466,7 +786,7 @@
                 </table>
             </div>
 
-            {# Ban-from-quiz-report confirmation modals #}
+            {# Ban-from-quiz-report modals #}
             {% for report in quiz_reports %}
             {% if report.quiz.author and report.quiz.author.role != 'admin' %}
             <div class="modal fade" id="banFromQuizReportModal{{ report.id }}" tabindex="-1" aria-hidden="true">
@@ -508,10 +828,90 @@
             {% endfor %}
 
             {% else %}
-            <p class="text-muted fst-italic">No quiz reports to review. 🎉</p>
+            <p class="text-muted fst-italic">
+                {% if report_filter == "favorites" %}
+                No quiz reports for your favourited courses. 🎉
+                {% else %}
+                No quiz reports to review. 🎉
+                {% endif %}
+            </p>
             {% endif %}
 
         </div>{# /reports-panel #}
+
+        {# ══════════════════════════════════════════════════════════════════
+        Tab 4: System
+        ══════════════════════════════════════════════════════════════════ #}
+        <div class="tab-pane fade" id="system-panel" role="tabpanel" aria-labelledby="system-tab">
+
+            <h4 class="mb-1">System Requirements</h4>
+            <p class="text-muted small mb-4">
+                Live status of every runtime dependency. A missing dependency
+                degrades note preview quality but does not break the app.
+            </p>
+
+            <div class="row g-3 mb-4">
+                {% for key, dep in system_checks.items() %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100
+                                border-{% if dep.ok %}success{% else %}danger{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="fs-4">
+                                    {% if dep.ok %}✅{% else %}❌{% endif %}
+                                </span>
+                                <h6 class="mb-0 fw-bold">{{ dep.label }}</h6>
+                            </div>
+                            <p class="small text-muted mb-2">{{ dep.purpose }}</p>
+                            {% if dep.ok %}
+                            <span class="badge bg-success">
+                                Installed{% if dep.version %} — {{ dep.version }}{% endif %}
+                            </span>
+                            {% else %}
+                            <p class="small mb-1 fw-semibold text-danger">Not installed</p>
+                            <p class="small text-muted mb-0">Install with:</p>
+                            <code class="small">{{ dep.install }}</code>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <hr>
+            <h5 class="mt-4 mb-2">Note Preview Cache</h5>
+            <p class="text-muted small mb-3">
+                DOCX and ODT files are converted to PDF at upload time for
+                instant preview. Files uploaded before LibreOffice was installed
+                have no cached PDF.
+            </p>
+
+            {% if unconverted_count > 0 %}
+            <div class="alert alert-warning d-flex
+                        justify-content-between align-items-center">
+                <div>
+                    <strong>{{ unconverted_count }} file(s)</strong>
+                    are missing a PDF preview cache.
+                    {% if system_checks.libreoffice.ok %}
+                    Click Reconvert to generate them now.
+                    {% else %}
+                    Install LibreOffice first, then reconvert.
+                    {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('reconvert_notes') }}">
+                    <button type="submit" class="btn btn-warning btn-sm" {% if not system_checks.libreoffice.ok
+                        %}disabled{% endif %}>
+                        🔄 Reconvert All
+                    </button>
+                </form>
+            </div>
+            {% else %}
+            <div class="alert alert-success mb-0">
+                ✅ All DOCX and ODT files have a PDF preview cached.
+            </div>
+            {% endif %}
+
+        </div>{# /system-panel #}
 
     </div>{# /tab-content #}
 
@@ -519,40 +919,97 @@
 </main>
 {% endblock %}
 
+{% block modals %}
+{% include "partials/notes_modal.html" %}
+{% endblock %}
+
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 <script>
-    // Restore active tab from ?tab= query param
     (function () {
-        const tab = new URLSearchParams(window.location.search).get("tab");
-        if (tab) {
-            const trigger = document.querySelector(`#${CSS.escape(tab)}-tab`);
+
+        // ── Restore active tab from ?tab= query param ─────────────────────────
+        const tabParam = new URLSearchParams(window.location.search).get("tab");
+        if (tabParam) {
+            const trigger = document.querySelector(`#${CSS.escape(tabParam)}-tab`);
             if (trigger) bootstrap.Tab.getOrCreateInstance(trigger).show();
         }
-    })();
 
-    // Notes preview modal — populate iframe from data attributes
-    (function () {
-        const modal = document.getElementById("notesPreviewModal");
-        if (!modal) return;
+        // ── Generic bulk-select setup ─────────────────────────────────────────
+        function initBulkSelect(opts) {
+            const selectAll = document.getElementById(opts.selectAllId);
+            const bar = document.getElementById(opts.bulkBarId);
+            const countEl = document.getElementById(opts.bulkCountId);
+            const form = document.getElementById(opts.bulkFormId);
+            const clearBtn = document.getElementById(opts.clearBtnId);
 
-        modal.addEventListener("show.bs.modal", function (event) {
-            const btn = event.relatedTarget;
-            if (!btn) return;
-            const src = btn.getAttribute("data-note-src") || "";
-            const title = btn.getAttribute("data-note-title") || "Notes";
-            document.getElementById("notesPreviewFrame").src = src;
-            document.getElementById("notesPreviewModalLabel").textContent = title;
+            if (!selectAll || !bar || !form) return;
+
+            function getBoxes() {
+                return [...document.querySelectorAll(`.${opts.checkboxClass}`)];
+            }
+
+            function sync() {
+                const boxes = getBoxes();
+                const checked = boxes.filter(b => b.checked);
+                const count = checked.length;
+
+                bar.classList.toggle("visible", count > 0);
+                countEl.textContent = `${count} report${count === 1 ? "" : "s"} selected`;
+
+                selectAll.indeterminate = count > 0 && count < boxes.length;
+                selectAll.checked = count > 0 && count === boxes.length;
+
+                boxes.forEach(b => {
+                    b.closest("tr").classList.toggle("row-selected", b.checked);
+                });
+
+                form.querySelectorAll('input[name="report_ids"]').forEach(n => n.remove());
+                checked.forEach(b => {
+                    const h = document.createElement("input");
+                    h.type = "hidden";
+                    h.name = "report_ids";
+                    h.value = b.value;
+                    form.appendChild(h);
+                });
+            }
+
+            selectAll.addEventListener("change", function () {
+                getBoxes().forEach(b => { b.checked = this.checked; });
+                sync();
+            });
+
+            document.addEventListener("change", function (e) {
+                if (e.target.classList.contains(opts.checkboxClass)) sync();
+            });
+
+            if (clearBtn) {
+                clearBtn.addEventListener("click", function () {
+                    getBoxes().forEach(b => { b.checked = false; });
+                    selectAll.checked = false;
+                    sync();
+                });
+            }
+        }
+
+        initBulkSelect({
+            selectAllId: "noteSelectAll",
+            checkboxClass: "note-report-cb",
+            bulkBarId: "noteBulkBar",
+            bulkCountId: "noteBulkCount",
+            bulkFormId: "noteBulkForm",
+            clearBtnId: "noteBulkClear",
         });
 
-        // Clear iframe when modal closes so the PDF doesn't keep loading in background
-        modal.addEventListener("hide.bs.modal", function () {
-            document.getElementById("notesPreviewFrame").src = "";
+        initBulkSelect({
+            selectAllId: "quizSelectAll",
+            checkboxClass: "quiz-report-cb",
+            bulkBarId: "quizBulkBar",
+            bulkCountId: "quizBulkCount",
+            bulkFormId: "quizBulkForm",
+            clearBtnId: "quizBulkClear",
         });
-    })();
+
+    }());
 </script>
-{% endblock %}
-
-{% block modals %}
-{% include "partials/notes_modal.html" %}
 {% endblock %}

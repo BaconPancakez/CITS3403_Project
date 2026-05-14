@@ -15,8 +15,23 @@ from app.models import (
     NoteVote, NoteReport, QuizReport,
 )
 
+# ── Allowed upload types ──────────────────────────────────────────────────────
+ALLOWED_NOTE_TYPES = {
+    ".pdf":  "application/pdf",
+    ".txt":  "text/plain",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".odt":  "application/vnd.oasis.opendocument.text",
+}
+
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from flask_login import logout_user
+
+import subprocess
+import tempfile
+import shutil
+import os
+import uuid
+
 
 def _favorite_codes():
     return set(session.get("favorite_course_codes", []))
@@ -144,19 +159,121 @@ def admin():
         flash("Admins only.", "danger")
         return redirect(url_for("home"))
 
-    students     = User.query.filter_by(role="student").order_by(User.name).all()
-    banned       = BannedUser.query.order_by(BannedUser.created_at.desc()).all()
-    reports      = NoteReport.query.order_by(NoteReport.created_at.desc()).all()
-    quiz_reports = QuizReport.query.order_by(QuizReport.created_at.desc()).all()
+    fav_codes = _favorite_codes()
+    fav_units = _favorite_units()
+    fav_list  = sorted(fav_codes)   # stable list for .in_() queries
+
+    # ── Student filter ────────────────────────────────────────────────────
+    student_filter = request.args.get("student_filter", "all")
+    students_query = User.query.filter_by(role="student")
+
+    if student_filter != "all" and fav_list:
+        if student_filter == "reviewed":
+            uids = {r[0] for r in db.session.query(Review.user_id).filter(
+                Review.course_code.in_(fav_list),
+                Review.user_id.isnot(None),
+            ).distinct()}
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+        elif student_filter == "discussed":
+            uids = {r[0] for r in db.session.query(Discussion.user_id).filter(
+                Discussion.course_code.in_(fav_list),
+                Discussion.user_id.isnot(None),
+            ).distinct()}
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+        elif student_filter == "uploaded":
+            uids = {r[0] for r in db.session.query(fileModel.author_id).filter(
+                fileModel.course_code.in_(fav_list),
+            ).distinct()}
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+        elif student_filter == "any":
+            uids = set()
+            for (uid,) in db.session.query(Review.user_id).filter(
+                Review.course_code.in_(fav_list),
+                Review.user_id.isnot(None),
+            ).distinct():
+                uids.add(uid)
+            for (uid,) in db.session.query(Discussion.user_id).filter(
+                Discussion.course_code.in_(fav_list),
+                Discussion.user_id.isnot(None),
+            ).distinct():
+                uids.add(uid)
+            for (uid,) in db.session.query(fileModel.author_id).filter(
+                fileModel.course_code.in_(fav_list),
+            ).distinct():
+                uids.add(uid)
+            students_query = students_query.filter(User.id.in_(uids or {-1}))
+
+    students = students_query.order_by(User.name).all()
+
+    # Build interaction badge data — 3 bulk queries regardless of student count
+    student_interactions = {s.id: set() for s in students}
+    if fav_list and students:
+        sid_list = [s.id for s in students]
+        for (uid,) in db.session.query(Review.user_id).filter(
+            Review.user_id.in_(sid_list),
+            Review.course_code.in_(fav_list),
+            Review.user_id.isnot(None),
+        ).distinct():
+            student_interactions[uid].add("reviewed")
+        for (uid,) in db.session.query(Discussion.user_id).filter(
+            Discussion.user_id.in_(sid_list),
+            Discussion.course_code.in_(fav_list),
+            Discussion.user_id.isnot(None),
+        ).distinct():
+            student_interactions[uid].add("discussed")
+        for (uid,) in db.session.query(fileModel.author_id).filter(
+            fileModel.author_id.in_(sid_list),
+            fileModel.course_code.in_(fav_list),
+        ).distinct():
+            student_interactions[uid].add("uploaded")
+
+    # ── Report filter ─────────────────────────────────────────────────────
+    report_filter      = request.args.get("report_filter", "all")
+    reports_query      = NoteReport.query
+    quiz_reports_query = QuizReport.query
+
+    if report_filter == "favorites" and fav_list:
+        note_sq = db.session.query(fileModel.id).filter(
+            fileModel.course_code.in_(fav_list)
+        ).subquery()
+        reports_query = reports_query.filter(NoteReport.note_id.in_(note_sq))
+
+        quiz_sq = db.session.query(CourseQuiz.id).filter(
+            CourseQuiz.course_code.in_(fav_list)
+        ).subquery()
+        quiz_reports_query = quiz_reports_query.filter(
+            QuizReport.quiz_id.in_(quiz_sq)
+        )
+
+    reports      = reports_query.order_by(NoteReport.created_at.desc()).all()
+    quiz_reports = quiz_reports_query.order_by(QuizReport.created_at.desc()).all()
+
+    banned        = BannedUser.query.order_by(BannedUser.created_at.desc()).all()
+    system_checks = _check_system()
+
+    unconverted_count = fileModel.query.filter(
+        fileModel.pdf_cache.is_(None),
+        fileModel.filename.ilike("%.docx") |
+        fileModel.filename.ilike("%.odt"),
+    ).count()
 
     return render_template(
         "admin.html",
-        courses=FEATURED_COURSES,
-        favorite_units=_favorite_units(),
+        courses=fav_units,
+        favorite_units=fav_units,
+        favorite_codes=fav_codes,
         students=students,
+        student_interactions=student_interactions,
+        student_filter=student_filter,
         banned=banned,
         reports=reports,
         quiz_reports=quiz_reports,
+        report_filter=report_filter,
+        system_checks=system_checks,
+        unconverted_count=unconverted_count,
     )
 
 
@@ -373,35 +490,78 @@ def course_detail(course_code):
                 db.session.commit()
 
         elif form_type == "notes_upload":
-            title   = request.form.get("notes_title",   "").strip()
-            details = request.form.get("notes_details", "").strip()
-            upload  = request.files.get("notes_file")
+            title        = request.form.get("notes_title",       "").strip()
+            details      = request.form.get("notes_details",     "").strip()
+            txt_content  = request.form.get("notes_txt_content", "").strip()
+            txt_filename = request.form.get("notes_txt_filename", "notes.txt").strip()
+            upload       = request.files.get("notes_file")
+
             if not title:
                 flash("Please provide a title for the notes.", "danger")
+
+            elif txt_content:
+                db.session.add(fileModel(
+                    course_code=course["code"],
+                    author_id=current_user.id,
+                    title=title,
+                    details=details or None,
+                    filename=txt_filename or "notes.txt",
+                    mimetype="text/plain",
+                    file=txt_content.encode("utf-8"),
+                    pdf_cache=None,
+                ))
+                db.session.commit()
+                flash("Notes uploaded.", "success")
+
             elif not upload or not upload.filename:
-                flash("Please choose a PDF file to upload.", "danger")
-            elif not upload.filename.lower().endswith(".pdf"):
-                flash("Only PDF files are supported.", "danger")
+                flash("Please choose a file to upload.", "danger")
+
             else:
-                file_bytes = upload.read()
-                if not file_bytes:
-                    flash("The uploaded file is empty.", "danger")
+                ext = (
+                    "." + upload.filename.rsplit(".", 1)[-1].lower()
+                    if "." in upload.filename else ""
+                )
+                if ext not in ALLOWED_NOTE_TYPES:
+                    flash("Unsupported file type. Allowed: PDF, TXT, DOCX, ODT.", "danger")
                 else:
-                    db.session.add(fileModel(
-                        course_code=course["code"],
-                        author_id=current_user.id,
-                        title=title,
-                        details=details or None,
-                        filename=upload.filename,
-                        mimetype=upload.mimetype or "application/pdf",
-                        file=file_bytes,
-                    ))
-                    db.session.commit()
-                    flash("Notes uploaded.", "success")
+                    file_bytes = upload.read()
+                    if not file_bytes:
+                        flash("The uploaded file is empty.", "danger")
+                    else:
+                        # Convert DOCX / ODT to PDF at upload time so preview is instant
+                        pdf_cache = None
+                        if ext in (".docx", ".odt"):
+                            pdf_cache = _libreoffice_to_pdf(file_bytes, ext)
+                            if pdf_cache:
+                                app.logger.info(
+                                    "Pre-converted %s to PDF (%d bytes)",
+                                    upload.filename, len(pdf_cache),
+                                )
+                            else:
+                                app.logger.warning(
+                                    "LibreOffice unavailable — %s will use HTML fallback preview",
+                                    upload.filename,
+                                )
+
+                        db.session.add(fileModel(
+                            course_code=course["code"],
+                            author_id=current_user.id,
+                            title=title,
+                            details=details or None,
+                            filename=upload.filename,
+                            mimetype=ALLOWED_NOTE_TYPES[ext],
+                            file=file_bytes,
+                            pdf_cache=pdf_cache,
+                        ))
+                        db.session.commit()
+                        flash("Notes uploaded.", "success")
 
         elif form_type == "quiz_create":
             question    = request.form.get("quiz_question", "").strip()
-            raw_choices = [request.form.get(f"quiz_choice_{i}", "").strip() for i in range(6)]
+            raw_choices = [
+                request.form.get(f"quiz_choice_{i}", "").strip()
+                for i in range(6)
+            ]
             raw_correct = request.form.get("quiz_correct_row")
             try:
                 correct_row = int(raw_correct) if raw_correct not in (None, "") else -1
@@ -462,7 +622,6 @@ def course_detail(course_code):
             .all()
         )
 
-    # Current user's existing votes so the template can highlight active buttons
     user_votes = {}
     if course_notes:
         user_votes = {
@@ -872,17 +1031,85 @@ def quiz_upvote_json(course_code, quiz_id):
 
 # ── File serving ──────────────────────────────────────────────────────────────
 
+@app.route("/notes/<int:note_id>/preview")
+@login_required
+def notes_preview(note_id):
+    note  = fileModel.query.get_or_404(note_id)
+    fname = (note.filename or "").lower().strip()
+    theme = request.args.get("theme", "light")
+    if theme not in ("light", "dark"):
+        theme = "light"
+
+    # PDFs render natively
+    if fname.endswith(".pdf"):
+        return redirect(url_for("notes_file", note_id=note_id))
+
+    # DOCX / ODT — serve pre-converted PDF cache if available
+    if fname.endswith((".docx", ".odt")) and note.pdf_cache:
+        return send_file(
+            BytesIO(bytes(note.pdf_cache)),
+            mimetype="application/pdf",
+            download_name=fname.rsplit(".", 1)[0] + "_preview.pdf",
+            as_attachment=False,
+        )
+
+    # Fallback: HTML rendering
+    try:
+        raw = bytes(note.file)
+    except Exception as exc:
+        app.logger.error("notes_preview: could not read file bytes: %s", exc)
+        raw = b""
+
+    try:
+        if fname.endswith(".txt"):
+            html_out = _txt_preview(raw, theme)
+        elif fname.endswith(".docx"):
+            html_out = _docx_preview(raw, theme)
+        elif fname.endswith(".odt"):
+            html_out = _odt_preview(raw, theme)
+        else:
+            html_out = _render_preview(
+                body="<p><em>No preview available for this file type.</em></p>",
+                theme=theme,
+                font="sans-serif",
+            )
+    except Exception as exc:
+        import html as _html
+        app.logger.error("notes_preview: render failed for %s: %s", fname, exc)
+        html_out = _render_preview(
+            body=f"<p><em>Preview error: {_html.escape(str(exc))}</em></p>",
+            theme=theme,
+            font="sans-serif",
+        )
+
+    return html_out, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
 @app.route("/notes/<int:note_id>/file")
 @login_required
 def notes_file(note_id):
-    note = fileModel.query.get_or_404(note_id)
-    download_name = note.filename or f"{note.title or 'notes'}.pdf"
+    note  = fileModel.query.get_or_404(note_id)
+    fname = (note.filename or "").lower()
+    inline = fname.endswith(".pdf") or fname.endswith(".txt")
     return send_file(
-        BytesIO(note.file),
-        mimetype=note.mimetype or "application/pdf",
-        download_name=download_name,
-        as_attachment=False,
+        BytesIO(bytes(note.file)),
+        mimetype=note.mimetype or "application/octet-stream",
+        download_name=note.filename or f"{note.title or 'notes'}.bin",
+        as_attachment=not inline,
     )
+
+
+@app.route("/notes/<int:note_id>/download")
+@login_required
+def notes_download(note_id):
+    note = fileModel.query.get_or_404(note_id)
+    return send_file(
+        BytesIO(bytes(note.file)),
+        mimetype=note.mimetype or "application/octet-stream",
+        download_name=note.filename or f"{note.title or 'notes'}.bin",
+        as_attachment=True,
+    )
+
 
 
 def _reset_serializer():
@@ -938,3 +1165,383 @@ def reset_password(token):
         return redirect(url_for("login"))
 
     return render_template("reset_password.html")
+
+def _render_preview(body: str, theme: str,
+                    font: str, plain_text: bool = False) -> str:
+    """Render the shared note_preview.html template and return an HTML string."""
+    return render_template(
+        "note_preview.html",
+        body=body,
+        theme=theme,
+        font=font,
+        plain_text=plain_text,
+    )
+
+
+def _txt_preview(raw: bytes, theme: str = "light") -> str:
+    import html as _html
+    text = raw.decode("utf-8", errors="replace")
+    body = f"<pre>{_html.escape(text)}</pre>"
+    return _render_preview(
+        body=body,
+        theme=theme,
+        font="'Courier New', Courier, monospace",
+        plain_text=True,
+    )
+
+
+def _docx_preview(raw: bytes, theme: str = "light") -> str:
+    import html as _html
+    body = ""
+    try:
+        import mammoth
+        result = mammoth.convert_to_html(BytesIO(raw))
+        body   = result.value or ""
+    except ImportError:
+        body = (
+            "<p><em>mammoth is not installed — "
+            "run <code>pip install mammoth</code>.</em></p>"
+        )
+    except Exception as exc:
+        body = f"<p><em>Could not render .docx: {_html.escape(str(exc))}</em></p>"
+
+    if not body:
+        body = "<p><em>Empty document.</em></p>"
+
+    return _render_preview(
+        body=body,
+        theme=theme,
+        font="Georgia, 'Times New Roman', serif",
+    )
+
+
+def _odt_preview(raw: bytes, theme: str = "light") -> str:
+    import html as _html
+    body = ""
+    try:
+        from odf.opendocument import load as odf_load
+        from odf import teletype
+
+        doc   = odf_load(BytesIO(raw))
+        parts = []
+
+        for elem in doc.text.childNodes:
+            if not hasattr(elem, "qname"):
+                continue
+            tag     = elem.qname[1]
+            content = _html.escape(teletype.extractText(elem))
+
+            if tag == "h":
+                lvl = elem.getAttribute("text:outline-level") or "1"
+                parts.append(f"<h{lvl}>{content}</h{lvl}>")
+            elif tag == "p":
+                parts.append(
+                    f"<p>{content if content.strip() else '&nbsp;'}</p>"
+                )
+            elif tag == "list":
+                items = [
+                    f"<li>{_html.escape(teletype.extractText(i)).strip()}</li>"
+                    for i in elem.childNodes
+                    if _html.escape(teletype.extractText(i)).strip()
+                ]
+                if items:
+                    parts.append("<ul>" + "".join(items) + "</ul>")
+            else:
+                if content.strip():
+                    parts.append(f"<p>{content}</p>")
+
+        body = "".join(parts)
+
+    except ImportError:
+        body = (
+            "<p><em>odfpy is not installed — "
+            "run <code>pip install odfpy</code>.</em></p>"
+        )
+    except Exception as exc:
+        body = f"<p><em>Could not render .odt: {_html.escape(str(exc))}</em></p>"
+
+    if not body:
+        body = "<p><em>Empty document.</em></p>"
+
+    return _render_preview(
+        body=body,
+        theme=theme,
+        font="Georgia, 'Times New Roman', serif",
+    )
+
+
+
+# ── Preview route ─────────────────────────────────────────────────────────────
+"""
+@app.route("/notes/<int:note_id>/preview")
+@login_required
+def notes_preview(note_id):
+    note  = fileModel.query.get_or_404(note_id)
+    fname = (note.filename or "").lower().strip()
+    theme = request.args.get("theme", "light")
+    if theme not in ("light", "dark"):
+        theme = "light"
+
+    # PDFs: let the browser handle them natively
+    if fname.endswith(".pdf"):
+        return redirect(url_for("notes_file", note_id=note_id))
+
+    try:
+        raw = bytes(note.file)
+    except Exception:
+        raw = b""
+
+    try:
+        if fname.endswith(".txt"):
+            html_out = _txt_preview(raw, theme)
+        elif fname.endswith(".docx"):
+            html_out = _docx_preview(raw, theme)
+        elif fname.endswith(".odt"):
+            html_out = _odt_preview(raw, theme)
+        else:
+            html_out = _render_preview(
+                body="<p><em>No preview available for this file type.</em></p>",
+                theme=theme,
+                font="sans-serif",
+            )
+    except Exception as exc:
+        # Always return HTML — never let an exception fall through to a download
+        import html as _html
+        html_out = _render_preview(
+            body=f"<p><em>Preview error: {_html.escape(str(exc))}</em></p>",
+            theme=theme,
+            font="sans-serif",
+        )
+
+    return html_out, 200, {"Content-Type": "text/html; charset=utf-8"}
+"""
+
+@app.route("/admin/notes/reconvert", methods=["POST"])
+@login_required
+def reconvert_notes():
+    """Re-run LibreOffice conversion for any DOCX/ODT that has no pdf_cache."""
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    if not shutil.which("libreoffice"):
+        flash("LibreOffice is not installed on this server.", "danger")
+        return redirect(url_for("admin", tab="system"))
+
+    notes = fileModel.query.filter(
+        fileModel.pdf_cache.is_(None),
+        fileModel.filename.ilike("%.docx") |
+        fileModel.filename.ilike("%.odt"),
+    ).all()
+
+    converted = 0
+    failed    = 0
+
+    for note in notes:
+        ext       = "." + note.filename.rsplit(".", 1)[-1].lower()
+        pdf_bytes = _libreoffice_to_pdf(bytes(note.file), ext)
+        if pdf_bytes:
+            note.pdf_cache = pdf_bytes
+            converted += 1
+        else:
+            failed += 1
+
+    db.session.commit()
+
+    if converted:
+        flash(f"Converted {converted} file(s) to PDF.", "success")
+    if failed:
+        flash(f"{failed} file(s) could not be converted.", "warning")
+    if not notes:
+        flash("All files already have a preview cached.", "info")
+
+    return redirect(url_for("admin", tab="system"))
+
+# ── System requirements check ─────────────────────────────────────────────────
+
+def _check_system() -> dict:
+    """
+    Return a dict of every runtime dependency and whether it is available.
+    Called by the admin system tab so the status is always live.
+    """
+    def _pkg(name: str) -> bool:
+        try:
+            __import__(name)
+            return True
+        except ImportError:
+            return False
+
+    def _pkg_version(name: str) -> str | None:
+        try:
+            import importlib.metadata
+            return importlib.metadata.version(name)
+        except Exception:
+            return None
+
+    def _lo_version() -> str | None:
+        try:
+            result = subprocess.run(
+                ["libreoffice", "--version"],
+                capture_output=True, text=True, timeout=5,
+            )
+            return result.stdout.strip().split("\n")[0] or None
+        except Exception:
+            return None
+
+    lo_ok = bool(shutil.which("libreoffice"))
+
+    return {
+        "libreoffice": {
+            "ok":      lo_ok,
+            "label":   "LibreOffice (headless)",
+            "version": _lo_version() if lo_ok else None,
+            "install": "sudo apt install libreoffice  |  brew install --cask libreoffice",
+            "purpose": "Converts DOCX and ODT to PDF for native in-browser preview.",
+        },
+        "mammoth": {
+            "ok":      _pkg("mammoth"),
+            "label":   "mammoth",
+            "version": _pkg_version("mammoth"),
+            "install": "pip install mammoth",
+            "purpose": "HTML fallback preview for DOCX when LibreOffice is unavailable.",
+        },
+        "odfpy": {
+            "ok":      _pkg("odf"),
+            "label":   "odfpy",
+            "version": _pkg_version("odfpy"),
+            "install": "pip install odfpy",
+            "purpose": "HTML fallback preview for ODT when LibreOffice is unavailable.",
+        },
+    }
+
+
+# ── LibreOffice conversion helper ─────────────────────────────────────────────
+
+def _libreoffice_to_pdf(raw: bytes, ext: str) -> bytes | None:
+    """
+    Convert DOCX or ODT bytes to PDF using LibreOffice headless.
+    Returns PDF bytes on success, None if LibreOffice is unavailable or fails.
+    Each call gets its own temp dir + LO profile to allow concurrent requests.
+    """
+    if not shutil.which("libreoffice"):
+        return None
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        profile_dir = os.path.join(tmpdir, f"profile_{uuid.uuid4().hex}")
+        os.makedirs(profile_dir, exist_ok=True)
+
+        input_path = os.path.join(tmpdir, f"document{ext}")
+        with open(input_path, "wb") as f:
+            f.write(raw)
+
+        try:
+            subprocess.run(
+                [
+                    "libreoffice",
+                    f"-env:UserInstallation=file://{profile_dir}",
+                    "--headless",
+                    "--norestore",
+                    "--nofirststartwizard",
+                    "--convert-to", "pdf",
+                    "--outdir", tmpdir,
+                    input_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+        except (subprocess.CalledProcessError,
+                subprocess.TimeoutExpired,
+                FileNotFoundError) as exc:
+            app.logger.error("LibreOffice conversion failed (%s): %s", ext, exc)
+            return None
+
+        pdf_path = os.path.join(tmpdir, "document.pdf")
+        if not os.path.isfile(pdf_path):
+            app.logger.error("LibreOffice produced no PDF for %s", ext)
+            return None
+
+        with open(pdf_path, "rb") as f:
+            return f.read()
+
+@app.route("/admin/reports/notes/bulk", methods=["POST"])
+@login_required
+def bulk_note_reports():
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    action     = request.form.get("bulk_action")
+    report_ids = request.form.getlist("report_ids", type=int)
+
+    if not report_ids:
+        flash("No reports selected.", "warning")
+        return redirect(url_for("admin", tab="reports"))
+
+    reports = NoteReport.query.filter(NoteReport.id.in_(report_ids)).all()
+
+    if action == "dismiss":
+        for r in reports:
+            db.session.delete(r)
+        db.session.commit()
+        flash(f"Dismissed {len(reports)} report(s).", "success")
+
+    elif action == "delete_notes":
+        # Collect unique note IDs across all selected reports
+        note_ids = list({r.note_id for r in reports})
+        deleted  = 0
+        for note_id in note_ids:
+            note = fileModel.query.get(note_id)
+            if note:
+                NoteVote.query.filter_by(note_id=note.id).delete()
+                NoteReport.query.filter_by(note_id=note.id).delete()
+                db.session.delete(note)
+                deleted += 1
+        db.session.commit()
+        flash(f"Deleted {deleted} note(s) and all related reports.", "success")
+
+    else:
+        flash("Unknown action.", "warning")
+
+    return redirect(url_for("admin", tab="reports"))
+
+
+@app.route("/admin/reports/quizzes/bulk", methods=["POST"])
+@login_required
+def bulk_quiz_reports():
+    if current_user.role != "admin":
+        flash("Unauthorized.", "danger")
+        return redirect(url_for("home"))
+
+    action     = request.form.get("bulk_action")
+    report_ids = request.form.getlist("report_ids", type=int)
+
+    if not report_ids:
+        flash("No reports selected.", "warning")
+        return redirect(url_for("admin", tab="reports"))
+
+    reports = QuizReport.query.filter(QuizReport.id.in_(report_ids)).all()
+
+    if action == "dismiss":
+        for r in reports:
+            db.session.delete(r)
+        db.session.commit()
+        flash(f"Dismissed {len(reports)} report(s).", "success")
+
+    elif action == "delete_quizzes":
+        quiz_ids = list({r.quiz_id for r in reports})
+        deleted  = 0
+        for quiz_id in quiz_ids:
+            quiz = CourseQuiz.query.get(quiz_id)
+            if quiz:
+                QuizReport.query.filter_by(quiz_id=quiz.id).delete()
+                QuizUpvote.query.filter_by(quiz_id=quiz.id).delete()
+                db.session.delete(quiz)
+                deleted += 1
+        db.session.commit()
+        flash(f"Deleted {deleted} quiz(zes) and all related reports.", "success")
+
+    else:
+        flash("Unknown action.", "warning")
+
+    return redirect(url_for("admin", tab="reports"))

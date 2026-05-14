@@ -95,16 +95,19 @@
                         </span>
                     </div>
 
-                    {# Action buttons #}
                     <div class="d-flex gap-2 flex-wrap align-items-center">
-
+                    
                         {# Preview #}
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
                             data-bs-target="#notesPreviewModal" data-note-title="{{ note.title }}"
-                            data-note-details="{{ note.details or '' }}"
-                            data-note-src="{{ url_for('notes_file', note_id=note.id) }}">
+                            data-note-details="{{ note.details or '' }}" data-note-src="{{ url_for('notes_preview', note_id=note.id) }}">
                             👁 Preview
                         </button>
+                    
+                        {# Download original file #}
+                        <a href="{{ url_for('notes_download', note_id=note.id) }}" class="btn btn-sm btn-outline-primary">
+                            ⬇ Download
+                        </a>
 
                         {# Upvote #}
                         <form method="POST" action="{{ url_for('vote_note', note_id=note.id) }}" class="d-inline">
