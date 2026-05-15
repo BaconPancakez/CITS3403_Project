@@ -1,5 +1,9 @@
 
-import os, tempfile, threading, time, unittest
+import os, tempfile, threading, time, unittest, sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
