@@ -128,6 +128,7 @@
 
                         {# Upvote #}
                         <form method="POST" action="{{ url_for('vote_note', note_id=note.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="value" value="1">
                             <input type="hidden" name="sort" value="{{ sort }}">
                             <button type="submit"
@@ -138,6 +139,7 @@
 
                         {# Downvote #}
                         <form method="POST" action="{{ url_for('vote_note', note_id=note.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="value" value="-1">
                             <input type="hidden" name="sort" value="{{ sort }}">
                             <button type="submit"
@@ -155,8 +157,9 @@
                     </div>
 
                     {# Admin remove #}
-                    {% if current_user.role == "admin" %}
+                    {% if current_user.is_authenticated and current_user.role == "admin" %}
                     <form method="post" action="{{ url_for('delete_note', note_id=note.id) }}" class="mt-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-sm btn-outline-danger" type="submit">
                             Remove note
                         </button>
@@ -197,6 +200,7 @@
                     <p class="small text-muted mb-2">Create a multiple-choice question for others to try.</p>
 
                     <form method="POST" class="mb-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="form_type" value="quiz_create">
 
                         <div class="mb-2">
@@ -239,8 +243,9 @@
                                 data-bs-toggle="modal" data-bs-target="#reportQuizModal{{ q.id }}">
                                 ⚑ Report
                             </button>
-                            {% if current_user.role == "admin" %}
+                            {% if current_user.is_authenticated and current_user.role == "admin" %}
                             <form method="POST" action="{{ url_for('delete_quiz', quiz_id=q.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="_next"
                                     value="{{ url_for('course_detail', course_code=course.code) }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -335,6 +340,7 @@
                             </div>
                             <form method="POST" action="{{ url_for('delete_own_review', review_id=user_review.id) }}"
                                 class="ms-2 flex-shrink-0" onsubmit="return confirm('Remove your review?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove your review">
                                     ✕
                                 </button>
@@ -343,6 +349,7 @@
                     </div>
                     {% else %}
                     <form method="POST" class="mb-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="form_type" value="review">
                         <div class="mb-2">
                             <select name="rating" class="form-select form-select-sm" required>
@@ -403,8 +410,9 @@
             
                             <p class="small text-muted mb-1 mt-1">{{ r.text }}</p>
             
-                            {% if current_user.role == "admin" %}
+                            {% if current_user.is_authenticated and current_user.role == "admin" %}
                             <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
                                     Remove
                                 </button>
@@ -459,8 +467,9 @@
                             </div>
                             {% endif %}
 
-                            {% if current_user.role == "admin" %}
+                            {% if current_user.is_authenticated and current_user.role == "admin" %}
                             <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
                                     Remove Comment
                                 </button>
@@ -468,6 +477,7 @@
                             {% endif %}
 
                             <form method="POST" class="mt-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="form_type" value="discussion_reply">
                                 <input type="hidden" name="parent_id" value="{{ c.id }}">
                                 <div class="input-group input-group-sm">
@@ -485,6 +495,7 @@
                     </div>
 
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="form_type" value="discussion">
                         <div class="input-group">
                             <input type="text" name="comment" class="form-control" placeholder="Write a comment…"
@@ -510,6 +521,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('report_note', note_id=note.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="sort" value="{{ sort }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Report Note: {{ note.title }}</h5>
@@ -544,6 +556,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('report_quiz', course_code=course.code, quiz_id=q.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="_next" value="{{ url_for('course_detail', course_code=course.code) }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Report Quiz</h5>
@@ -578,149 +591,5 @@
 
 {% block scripts %}
 {% include "partials/course_quiz_scripts.html" %}
-<script>
-    (function () {
-        const input = document.getElementById("noteSearchInput");
-        const clearBtn = document.getElementById("noteSearchClear");
-        const empty = document.getElementById("noteSearchEmpty");
-
-        if (!input) return;
-
-        function filter() {
-            const q = input.value.trim().toLowerCase();
-            const cards = document.querySelectorAll(".note-card");
-            let shown = 0;
-
-            cards.forEach(function (card) {
-                const title = card.getAttribute("data-note-title") || "";
-                const uploader = card.getAttribute("data-note-uploader") || "";
-                const details = card.getAttribute("data-note-details") || "";
-                const match = !q || title.includes(q) || uploader.includes(q) || details.includes(q);
-
-                card.style.display = match ? "" : "none";
-                if (match) shown++;
-            });
-
-            clearBtn.style.display = q ? "inline-flex" : "none";
-            empty.style.display = (q && shown === 0) ? "block" : "none";
-        }
-
-        input.addEventListener("input", filter);
-
-        clearBtn.addEventListener("click", function () {
-            input.value = "";
-            filter();
-            input.focus();
-        });
-    }());
-</script>
-<script>
-    (function () {
-        const VISIBLE_DEFAULT = 4;
-
-        const list = document.getElementById("reviewList");
-        const toggleBtn = document.getElementById("reviewToggleBtn");
-        const sortBtns = document.querySelectorAll(".review-sort-btn");
-        const barRows = document.querySelectorAll(".review-bar-row");
-
-        if (!list) return;
-
-        let currentSort = "newest";
-        let currentStar = 0;      // 0 = all
-        let expanded = false;
-
-        // ── Collect review items ──────────────────────────────────────────────
-        function items() {
-            return [...list.querySelectorAll(".review-item")];
-        }
-
-        // ── Sort ──────────────────────────────────────────────────────────────
-        function sorted(arr) {
-            return [...arr].sort(function (a, b) {
-                const ra = parseInt(a.dataset.rating, 10);
-                const rb = parseInt(b.dataset.rating, 10);
-                const ca = parseInt(a.dataset.created, 10);
-                const cb = parseInt(b.dataset.created, 10);
-                if (currentSort === "highest") return rb - ra || cb - ca;
-                if (currentSort === "lowest") return ra - rb || cb - ca;
-                return cb - ca;
-            });
-        }
-
-        // ── Re-render ─────────────────────────────────────────────────────────
-        function render() {
-            const all = items();
-            const filtered = currentStar
-                ? all.filter(el => parseInt(el.dataset.rating, 10) === currentStar)
-                : all;
-            const ordered = sorted(filtered);
-
-            all.forEach(el => { el.style.display = "none"; });
-            ordered.forEach(function (el, i) {
-                list.appendChild(el);
-                el.style.display = (!expanded && i >= VISIBLE_DEFAULT) ? "none" : "";
-            });
-
-            // Toggle button
-            if (toggleBtn) {
-                if (ordered.length <= VISIBLE_DEFAULT) {
-                    toggleBtn.style.display = "none";
-                } else if (expanded) {
-                    toggleBtn.textContent = "Show fewer";
-                    toggleBtn.style.display = "";
-                } else {
-                    toggleBtn.textContent = `Show all ${ordered.length} reviews`;
-                    toggleBtn.style.display = "";
-                }
-            }
-
-            // Highlight active bar
-            barRows.forEach(function (row) {
-                const star = parseInt(row.dataset.star, 10);
-                const active = currentStar === star;
-                const fill = row.querySelector(".review-bar-fill");
-
-                row.style.background = active
-                    ? "rgba(245, 158, 11, 0.12)"
-                    : "";
-                if (fill) fill.style.background = active ? "#d97706" : "#f59e0b";
-            });
-        }
-
-        // ── Sort buttons ──────────────────────────────────────────────────────
-        sortBtns.forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                currentSort = this.dataset.sort;
-                sortBtns.forEach(b => {
-                    b.classList.toggle("btn-primary", b === this);
-                    b.classList.toggle("btn-outline-secondary", b !== this);
-                });
-                render();
-            }.bind(btn));
-        });
-
-        // ── Bar row clicks ────────────────────────────────────────────────────
-        barRows.forEach(function (row) {
-            row.addEventListener("click", function () {
-                const star = parseInt(this.dataset.star, 10);
-                // Clicking the active filter again clears it
-                currentStar = (currentStar === star) ? 0 : star;
-                expanded = false;
-                render();
-            });
-        });
-
-        // ── Show more / fewer ─────────────────────────────────────────────────
-        if (toggleBtn) {
-            toggleBtn.addEventListener("click", function () {
-                expanded = !expanded;
-                render();
-            });
-        }
-
-        // ── Initial render ────────────────────────────────────────────────────
-        render();
-
-    }());
-</script>
+<script src="{{ url_for('static', filename='js/coursepg.js') }}" defer></script>
 {% endblock %}

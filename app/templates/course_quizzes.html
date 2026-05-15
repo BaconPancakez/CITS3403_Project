@@ -3,32 +3,7 @@
 {% block title %}{{ course.code }} — Quizzes{% endblock %}
 
 {% block page_css %}
-<style>
-    .quiz-question-text {
-        white-space: pre-wrap;
-    }
-
-    .quiz-all-wrap h2.h-quiz-n {
-        font-size: 1.1rem;
-        margin-top: 1.25rem;
-        margin-bottom: 0.5rem;
-        font-weight: 700;
-    }
-
-    .quiz-all-wrap h2.h-quiz-n:first-of-type {
-        margin-top: 0;
-    }
-
-    .quiz-all-wrap .quiz-md-divider {
-        border-top: 1px solid var(--bs-border-color);
-        margin: 1rem 0;
-    }
-
-    .quiz-all-wrap .quiz-item {
-        padding: 1rem !important;
-        margin-bottom: 1rem !important;
-    }
-</style>
+<link href="{{ url_for('static', filename='css/course_quizzes.css') }}" rel="stylesheet" />
 {% endblock %}
 
 {% block content %}
@@ -76,8 +51,9 @@
                             data-bs-toggle="modal" data-bs-target="#reportQuizModal{{ q.id }}">
                             ⚑ Report this question
                         </button>
-                        {% if current_user.role == "admin" %}
+                        {% if current_user.is_authenticated and current_user.role == "admin" %}
                         <form method="POST" action="{{ url_for('delete_quiz', quiz_id=q.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="_next"
                                 value="{{ url_for('course_quizzes', course_code=course.code) }}">
                             <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -129,14 +105,16 @@
                                 {% endfor %}
                             </div>
                             {% endif %}
-                            {% if current_user.role == "admin" %}
+                            {% if current_user.is_authenticated and current_user.role == "admin" %}
                             <form method="post" action="{{ url_for('delete_discussion', discussion_id=c.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
                                     Remove Comment
                                 </button>
                             </form>
                             {% endif %}
                             <form method="POST" class="mt-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="form_type" value="discussion_reply">
                                 <input type="hidden" name="parent_id" value="{{ c.id }}">
                                 <div class="input-group input-group-sm">
@@ -154,6 +132,7 @@
                     </div>
 
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="form_type" value="discussion">
                         <div class="input-group">
                             <input type="text" name="comment" class="form-control" placeholder="Write a comment…"
@@ -174,6 +153,7 @@
                     {% endif %}
 
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="form_type" value="review">
                         <div class="mb-2">
                             <select name="rating" class="form-select" required>
@@ -202,8 +182,9 @@
                         <p class="small text-muted mb-1">
                             <strong>{{ r.display_name }}:</strong> {{ r.text }}
                         </p>
-                        {% if current_user.role == "admin" %}
+                        {% if current_user.is_authenticated and current_user.role == "admin" %}
                         <form method="post" action="{{ url_for('delete_review', review_id=r.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-sm btn-outline-danger mt-1" type="submit">
                                 Remove Review
                             </button>
@@ -231,6 +212,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('report_quiz', course_code=course.code, quiz_id=q.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="_next" value="{{ url_for('course_quizzes', course_code=course.code) }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Report Quiz Question</h5>

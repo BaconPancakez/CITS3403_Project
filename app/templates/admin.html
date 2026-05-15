@@ -4,81 +4,6 @@
 
 {% block page_css %}
 <link href="{{ url_for('static', filename='css/admin.css') }}" rel="stylesheet" />
-<style>
-    /* ── Bulk-action bar ───────────────────────────────────────────────── */
-    .bulk-bar {
-        position: sticky;
-        top: 0;
-        z-index: 30;
-        display: none;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.6rem 1rem;
-        background: var(--bs-body-bg, #fff);
-        border-bottom: 2px solid var(--bs-border-color, #dee2e6);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
-        border-radius: 8px;
-        margin-bottom: 0.75rem;
-    }
-
-    .bulk-bar.visible {
-        display: flex;
-    }
-
-    .bulk-bar .bulk-count {
-        font-weight: 600;
-        font-size: 0.9rem;
-        flex: 1;
-    }
-
-    /* ── Row highlight when checked ────────────────────────────────────── */
-    tr.row-selected {
-        background-color: rgba(249, 115, 22, 0.07) !important;
-    }
-
-    /* ── Filter bar ────────────────────────────────────────────────────── */
-    .filter-bar {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-        padding: 0.6rem 0.9rem;
-        background: var(--bs-tertiary-bg, #f8f9fa);
-        border: 1px solid var(--bs-border-color, #dee2e6);
-        border-radius: 10px;
-        margin-bottom: 1.1rem;
-    }
-
-    .filter-bar .filter-label {
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: var(--bs-secondary-color, #6c757d);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        white-space: nowrap;
-    }
-
-    /* ── Interaction badges ─────────────────────────────────────────────── */
-    .ixn-badge {
-        font-size: 0.6rem;
-        font-weight: 600;
-        padding: 0.18em 0.45em;
-        border-radius: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-
-    /* ── Course card summary ─────────────────────────────────────────────────── */
-    .course-summary {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        min-height: 0;
-        font-size: 0.85rem;
-        line-height: 1.55;
-    }
-    }
-</style>
 {% endblock %}
 
 {% block body_class %}admin-dashboard{% endblock %}
@@ -314,6 +239,7 @@
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <form method="POST" action="{{ url_for('ban_user', user_id=student.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="modal-header bg-danger text-white">
                                 <h5 class="modal-title" id="banModalLabel{{ student.id }}">
                                     Ban {{ student.name or student.email }}?
@@ -393,6 +319,7 @@
                             <td class="text-end">
                                 <form method="POST" action="{{ url_for('unban_user', banned_id=b.id) }}"
                                     onsubmit="return confirm('Remove {{ b.email }} from the ban list?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-outline-success btn-sm">
                                         ✅ Unban
                                     </button>
@@ -466,6 +393,7 @@
             <div class="bulk-bar" id="noteBulkBar">
                 <span class="bulk-count" id="noteBulkCount">0 selected</span>
                 <form method="POST" action="{{ url_for('bulk_note_reports') }}" id="noteBulkForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="d-flex gap-2">
                         <button type="submit" name="bulk_action" value="dismiss"
                             class="btn btn-sm btn-outline-secondary">
@@ -557,6 +485,7 @@
                             <td class="text-end">
                                 <div class="d-flex gap-1 justify-content-end flex-wrap">
                                     <form method="POST" action="{{ url_for('dismiss_report', report_id=report.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-secondary btn-sm"
                                             title="Dismiss without action">
                                             ✕ Dismiss
@@ -564,6 +493,7 @@
                                     </form>
                                     <form method="POST" action="{{ url_for('delete_note', note_id=report.note.id) }}"
                                         onsubmit="return confirm('Remove note and all its reports?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="_next" value="{{ url_for('admin', tab='reports') }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             🗑 Remove Note
@@ -590,6 +520,7 @@
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <form method="POST" action="{{ url_for('ban_user', user_id=report.note.author.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="modal-header bg-danger text-white">
                                 <h5 class="modal-title">
                                     Ban {{ report.note.author.name or report.note.author.email }}?
@@ -651,6 +582,7 @@
             <div class="bulk-bar" id="quizBulkBar">
                 <span class="bulk-count" id="quizBulkCount">0 selected</span>
                 <form method="POST" action="{{ url_for('bulk_quiz_reports') }}" id="quizBulkForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="d-flex gap-2">
                         <button type="submit" name="bulk_action" value="dismiss"
                             class="btn btn-sm btn-outline-secondary">
@@ -751,6 +683,7 @@
                                 <div class="d-flex gap-1 justify-content-end flex-wrap">
                                     <form method="POST"
                                         action="{{ url_for('dismiss_quiz_report', report_id=report.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-secondary btn-sm"
                                             title="Dismiss without action">
                                             ✕ Dismiss
@@ -758,6 +691,7 @@
                                     </form>
                                     <form method="POST" action="{{ url_for('delete_quiz', quiz_id=report.quiz.id) }}"
                                         onsubmit="return confirm('Remove quiz and all its reports?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="_next" value="{{ url_for('admin', tab='reports') }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             🗑 Remove Quiz
@@ -784,6 +718,7 @@
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <form method="POST" action="{{ url_for('ban_user', user_id=report.quiz.author.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="modal-header bg-danger text-white">
                                 <h5 class="modal-title">
                                     Ban {{ report.quiz.author.name or report.quiz.author.email }}?
@@ -842,92 +777,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
-<script>
-    (function () {
-
-        // ── Restore active tab from ?tab= query param ─────────────────────────
-        const tabParam = new URLSearchParams(window.location.search).get("tab");
-        if (tabParam) {
-            const trigger = document.querySelector(`#${CSS.escape(tabParam)}-tab`);
-            if (trigger) bootstrap.Tab.getOrCreateInstance(trigger).show();
-        }
-
-        // ── Generic bulk-select setup ─────────────────────────────────────────
-        function initBulkSelect(opts) {
-            const selectAll = document.getElementById(opts.selectAllId);
-            const bar = document.getElementById(opts.bulkBarId);
-            const countEl = document.getElementById(opts.bulkCountId);
-            const form = document.getElementById(opts.bulkFormId);
-            const clearBtn = document.getElementById(opts.clearBtnId);
-
-            if (!selectAll || !bar || !form) return;
-
-            function getBoxes() {
-                return [...document.querySelectorAll(`.${opts.checkboxClass}`)];
-            }
-
-            function sync() {
-                const boxes = getBoxes();
-                const checked = boxes.filter(b => b.checked);
-                const count = checked.length;
-
-                bar.classList.toggle("visible", count > 0);
-                countEl.textContent = `${count} report${count === 1 ? "" : "s"} selected`;
-
-                selectAll.indeterminate = count > 0 && count < boxes.length;
-                selectAll.checked = count > 0 && count === boxes.length;
-
-                boxes.forEach(b => {
-                    b.closest("tr").classList.toggle("row-selected", b.checked);
-                });
-
-                form.querySelectorAll('input[name="report_ids"]').forEach(n => n.remove());
-                checked.forEach(b => {
-                    const h = document.createElement("input");
-                    h.type = "hidden";
-                    h.name = "report_ids";
-                    h.value = b.value;
-                    form.appendChild(h);
-                });
-            }
-
-            selectAll.addEventListener("change", function () {
-                getBoxes().forEach(b => { b.checked = this.checked; });
-                sync();
-            });
-
-            document.addEventListener("change", function (e) {
-                if (e.target.classList.contains(opts.checkboxClass)) sync();
-            });
-
-            if (clearBtn) {
-                clearBtn.addEventListener("click", function () {
-                    getBoxes().forEach(b => { b.checked = false; });
-                    selectAll.checked = false;
-                    sync();
-                });
-            }
-        }
-
-        initBulkSelect({
-            selectAllId: "noteSelectAll",
-            checkboxClass: "note-report-cb",
-            bulkBarId: "noteBulkBar",
-            bulkCountId: "noteBulkCount",
-            bulkFormId: "noteBulkForm",
-            clearBtnId: "noteBulkClear",
-        });
-
-        initBulkSelect({
-            selectAllId: "quizSelectAll",
-            checkboxClass: "quiz-report-cb",
-            bulkBarId: "quizBulkBar",
-            bulkCountId: "quizBulkCount",
-            bulkFormId: "quizBulkForm",
-            clearBtnId: "quizBulkClear",
-        });
-
-    }());
-</script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}" defer></script>
 {% endblock %}

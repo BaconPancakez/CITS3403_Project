@@ -5,6 +5,7 @@
 
     <form class="quiz-answer-form" method="post"
         data-answer-url="{{ url_for('quiz_answer_json', course_code=course.code, quiz_id=q.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% for opt in q.choices %}
         <div class="form-check mb-1">
             <input class="form-check-input" type="radio" name="selected_index"

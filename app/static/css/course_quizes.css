@@ -1,0 +1,24 @@
+.quiz-question-text {
+    white-space: pre-wrap;
+}
+
+.quiz-all-wrap h2.h-quiz-n {
+    font-size: 1.1rem;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.quiz-all-wrap h2.h-quiz-n:first-of-type {
+    margin-top: 0;
+}
+
+.quiz-all-wrap .quiz-md-divider {
+    border-top: 1px solid var(--bs-border-color);
+    margin: 1rem 0;
+}
+
+.quiz-all-wrap .quiz-item {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+}

@@ -20,10 +20,10 @@ The application is designed to improve accessibility to study materials, increas
 ## Group Members
 | UWA ID | Name | GitHub Username |
 |--------|------|-----------------|
-| -- | Name | --- |
+| 24224716 | Oliver Wright | oliver-31415 |
 | 24217338| Rosie Wang | R89097 |
 | 25303739  | Qi Ming Seng | BaconPancakez |
-| -- | Name | --- |
+| 23433973 | Zacc Benabid | ZacB28 |
 
 ### Setup
 
