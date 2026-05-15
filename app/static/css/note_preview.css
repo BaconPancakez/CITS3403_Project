@@ -1,0 +1,225 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #edf0f5;
+    --doc-bg: #ffffff;
+    --text: #1a1a2e;
+    --muted: #64748b;
+    --border: #e0e3ec;
+    --pre-bg: #f4f6fa;
+    --code-bg: #eef0f7;
+    --th-bg: #f4f6fb;
+    --stripe-bg: #fafbfd;
+    --quote-bg: #f8fafc;
+    --quote-border: #cbd5e1;
+    --link: #2563eb;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.09),
+        0 8px 32px rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="dark"] {
+    --bg: #0a0a18;
+    --doc-bg: #12122a;
+    --text: #dde1ee;
+    --muted: #8890a4;
+    --border: rgba(255, 255, 255, 0.08);
+    --pre-bg: #0d0d22;
+    --code-bg: rgba(255, 255, 255, 0.07);
+    --th-bg: rgba(255, 255, 255, 0.05);
+    --stripe-bg: rgba(255, 255, 255, 0.02);
+    --quote-bg: rgba(255, 255, 255, 0.03);
+    --quote-border: rgba(255, 255, 255, 0.18);
+    --link: #60a5fa;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.5),
+        0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+body {
+    font-size: 0.925rem;
+    line-height: 1.8;
+    background: var(--bg);
+    color: var(--text);
+    padding: 2rem 1rem;
+    transition: background 0.25s ease, color 0.25s ease;
+}
+
+.doc {
+    background: var(--doc-bg);
+    box-shadow: var(--shadow);
+    border-radius: 6px;
+    padding: 3rem 3.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+    min-height: calc(100vh - 4rem);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* ── Headings ── */
+h1 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    margin: 0 0 1.1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 2px solid var(--border);
+}
+
+h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 1.75rem 0 0.6rem;
+}
+
+h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.4rem 0 0.5rem;
+}
+
+h4,
+h5,
+h6 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 1.1rem 0 0.4rem;
+}
+
+/* ── Body copy ── */
+p {
+    margin: 0 0 0.9rem;
+}
+
+p:last-child {
+    margin-bottom: 0;
+}
+
+ul,
+ol {
+    margin: 0.5rem 0 0.9rem 1.6rem;
+}
+
+li {
+    margin: 0.3rem 0;
+}
+
+/* ── Tables ── */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.1rem 0;
+    font-size: 0.875rem;
+}
+
+td,
+th {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+}
+
+th {
+    background: var(--th-bg);
+    font-weight: 600;
+    color: var(--muted);
+}
+
+tr:nth-child(even) {
+    background: var(--stripe-bg);
+}
+
+/* ── Code & pre ── */
+pre {
+    font-family: 'Courier New', Courier, monospace;
+    background: var(--pre-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0.9rem 0;
+    font-size: 0.85rem;
+}
+
+code {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875rem;
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+}
+
+/* ── Blockquote ── */
+blockquote {
+    border-left: 4px solid var(--quote-border);
+    margin: 1rem 0;
+    padding: 0.5rem 1.1rem;
+    color: var(--muted);
+    background: var(--quote-bg);
+    border-radius: 0 4px 4px 0;
+}
+
+/* ── Misc ── */
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.75rem 0;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+}
+
+a {
+    color: var(--link);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+strong,
+b {
+    font-weight: 650;
+}
+
+/* ── Plain-text files ── */
+body.plain-text {
+    padding: 0;
+    background: var(--doc-bg);
+}
+
+body.plain-text .doc {
+    box-shadow: none;
+    border-radius: 0;
+    padding: 2rem 2.5rem;
+    max-width: 100%;
+    min-height: 100vh;
+}
+
+body.plain-text pre {
+    border: none;
+    background: none;
+    padding: 0;
+    margin: 0;
+}

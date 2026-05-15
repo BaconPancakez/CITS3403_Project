@@ -39,3 +39,77 @@
     background-color: transparent;
     font-weight: 700;
 }
+
+/* ── Bulk-action bar ───────────────────────────────────────────────── */
+.bulk-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    background: var(--bs-body-bg, #fff);
+    border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+}
+
+.bulk-bar.visible {
+    display: flex;
+}
+
+.bulk-bar .bulk-count {
+    font-weight: 600;
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+/* ── Row highlight when checked ────────────────────────────────────── */
+tr.row-selected {
+    background-color: rgba(249, 115, 22, 0.07) !important;
+}
+
+/* ── Filter bar ────────────────────────────────────────────────────── */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding: 0.6rem 0.9rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 10px;
+    margin-bottom: 1.1rem;
+}
+
+.filter-bar .filter-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #6c757d);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+/* ── Interaction badges ─────────────────────────────────────────────── */
+.ixn-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.18em 0.45em;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* ── Course card summary ─────────────────────────────────────────────── */
+.course-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 0;
+    font-size: 0.85rem;
+    line-height: 1.55;
+}

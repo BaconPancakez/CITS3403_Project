@@ -100,6 +100,8 @@
                     </button>
                 
                     <form method="post" action="{{ url_for('logout') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-outline-secondary w-100" type="submit">
                             Sign out
                         </button>
@@ -141,23 +143,6 @@
     {% block modals %}{% endblock %}
     {% block scripts %}{% endblock %}
     
-    <script>
-        (function () {
-            const toggle = document.getElementById("themeSwitch");
-            const html = document.documentElement;
-
-            // Sync checkbox with whatever theme is already active (set in <head>)
-            const current = html.getAttribute("data-bs-theme") || "light";
-            if (toggle) toggle.checked = current === "dark";
-
-            if (toggle) {
-                toggle.addEventListener("change", function () {
-                    const next = this.checked ? "dark" : "light";
-                    html.setAttribute("data-bs-theme", next);
-                    localStorage.setItem("theme", next);
-                });
-            }
-        }());
-    </script>
+    <script src="{{ url_for('static', filename='js/base.js') }}" defer></script>
 </body>
 </html>
