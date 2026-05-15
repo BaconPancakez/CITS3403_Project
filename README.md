@@ -25,7 +25,7 @@ The application is designed to improve accessibility to study materials, increas
 | 25303739  | Qi Ming Seng | BaconPancakez |
 | 23433973 | Zacc Benabid | ZacB28 |
 
-### Setup
+## Setup
 
 1. Create a virtual environment
 ```
@@ -72,7 +72,7 @@ MYAPP_SECRET_KEY=change-me
 # MYAPP_DATABASE_URL=sqlite:////absolute/path/to/uuua.db
 ```
 
-### Run
+## Run
 
 ```
 flask run
@@ -85,4 +85,61 @@ flask db upgrade
 then open the following URL in your web browser:
 ```
 http://127.0.0.1:5000
+```
+
+## Run Tests
+
+### Unit tests
+
+The project includes backend unit tests for:
+- User authentication
+- Password hashing
+- Reviews
+- Discussions and replies
+- Notes preview support
+- Notifications
+- Database constraints
+
+#### Run all unit tests:
+```bash
+python3 tests.py
+```
+
+### Selenium Web tests
+The project also includes Selenium browser-based system tests for:
+- Landing page loading
+- Student login
+- Admin login
+- Invalid login handling
+- Course search
+- Course page navigation
+- Review submission
+- Upload notes modal functionality
+
+#### Required Downloads:
+Install Selenium 
+```bash
+pip3 install selenium
+```
+
+Install Chrome and ChromeDriver
+###### macOS/Linux
+```bash
+brew install --cask google-chrome
+brew install chromedriver
+```
+###### Windows
+download from approved sources, matching your Chrome version, then extract and add to your system PATH.
+
+Example:
+- Extract chromedriver.exe
+- Move it to:
+    C:\chromedriver\
+- Add:
+    C:\chromedriver\
+to Environment Variables → PATH.
+
+##### Run Selenium tests:
+```bash
+python3 -m unittest tests/selenium_tests.py
 ```
