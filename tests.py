@@ -1,18 +1,20 @@
 # To run just use python (or python3) tests.py
-
 import os
-os.environ['DATABASE_URL'] = 'sqlite://'
-
-from datetime import datetime, timezone, timedelta
 import unittest
+
+os.environ["MYAPP_DATABASE_URL"] = "sqlite://"
+os.environ["MYAPP_SECRET_KEY"] = "test-secret"
+
+from sqlalchemy.exc import IntegrityError
+from app.models import User, Review, Discussion, BannedUser, fileModel, NoteVote, NoteReport, CourseQuiz, QuizReport, QuizUpvote, Notification
+
 from app import app, db
-from app.models import User, Post
 
-
-class UserModelCase(unittest.TestCase):
+class BaseTestCase(unittest.TestCase):
     def setUp(self):
         self.app_context = app.app_context()
         self.app_context.push()
+        app.config.update(TESTING=True)
         db.create_all()
 
     def tearDown(self):
@@ -20,83 +22,151 @@ class UserModelCase(unittest.TestCase):
         db.drop_all()
         self.app_context.pop()
 
+class UserModelCase(BaseTestCase):
     def test_password_hashing(self):
-        u = User(username='susan', email='susan@example.com')
-        u.set_password('cat')
-        self.assertFalse(u.check_password('dog'))
-        self.assertTrue(u.check_password('cat'))
+        u1 = User(email='u1@student.uwa.edu.au', name='u1')
+        u1.set_password('Abc12345')
+        self.assertFalse(u1.check_password('Abc54321'))
+        self.assertTrue(u1.check_password('Abc12345'))
 
-    def test_avatar(self):
-        u = User(username='john', email='john@example.com')
-        self.assertEqual(u.avatar(128), ('https://www.gravatar.com/avatar/'
-                                         'd4c74594d841139328695756648b6bd6'
-                                         '?d=identicon&s=128'))
-
-    def test_follow(self):
-        u1 = User(username='john', email='john@example.com')
-        u2 = User(username='susan', email='susan@example.com')
-        db.session.add(u1)
-        db.session.add(u2)
-        db.session.commit()
-        following = db.session.scalars(u1.following.select()).all()
-        followers = db.session.scalars(u2.followers.select()).all()
-        self.assertEqual(following, [])
-        self.assertEqual(followers, [])
-
-        u1.follow(u2)
-        db.session.commit()
-        self.assertTrue(u1.is_following(u2))
-        self.assertEqual(u1.following_count(), 1)
-        self.assertEqual(u2.followers_count(), 1)
-        u1_following = db.session.scalars(u1.following.select()).all()
-        u2_followers = db.session.scalars(u2.followers.select()).all()
-        self.assertEqual(u1_following[0].username, 'susan')
-        self.assertEqual(u2_followers[0].username, 'john')
-
-        u1.unfollow(u2)
-        db.session.commit()
-        self.assertFalse(u1.is_following(u2))
-        self.assertEqual(u1.following_count(), 0)
-        self.assertEqual(u2.followers_count(), 0)
-
-    def test_follow_posts(self):
-        # create four users
-        u1 = User(username='john', email='john@example.com')
-        u2 = User(username='susan', email='susan@example.com')
-        u3 = User(username='mary', email='mary@example.com')
-        u4 = User(username='david', email='david@example.com')
-        db.session.add_all([u1, u2, u3, u4])
-
-        # create four posts
-        now = datetime.now(timezone.utc)
-        p1 = Post(body="post from john", author=u1,
-                  timestamp=now + timedelta(seconds=1))
-        p2 = Post(body="post from susan", author=u2,
-                  timestamp=now + timedelta(seconds=4))
-        p3 = Post(body="post from mary", author=u3,
-                  timestamp=now + timedelta(seconds=3))
-        p4 = Post(body="post from david", author=u4,
-                  timestamp=now + timedelta(seconds=2))
-        db.session.add_all([p1, p2, p3, p4])
+class ReviewModelCase(BaseTestCase):
+    def test_unique_review_per_user_course(self):
+        u = User(email="a@b.com", name="A")
+        db.session.add(u)
         db.session.commit()
 
-        # setup the followers
-        u1.follow(u2)  # john follows susan
-        u1.follow(u4)  # john follows david
-        u2.follow(u3)  # susan follows mary
-        u3.follow(u4)  # mary follows david
+        r1 = Review(user_id=u.id, course_code="CITS3403", rating=5, text="Good")
+        r2 = Review(user_id=u.id, course_code="CITS3403", rating=4, text="Ok")
+        db.session.add_all([r1, r2])
+        with self.assertRaises(IntegrityError):
+            db.session.commit()
+
+    
+class AuthRoutesCase(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client = app.test_client()
+
+    def test_login_invalid_password(self):
+        u = User(name="U", email="u@student.uwa.edu.au", role="student")
+        u.set_password("secret123")
+        db.session.add(u)
         db.session.commit()
 
-        # check the following posts of each user
-        f1 = db.session.scalars(u1.following_posts()).all()
-        f2 = db.session.scalars(u2.following_posts()).all()
-        f3 = db.session.scalars(u3.following_posts()).all()
-        f4 = db.session.scalars(u4.following_posts()).all()
-        self.assertEqual(f1, [p2, p4, p1])
-        self.assertEqual(f2, [p2, p3])
-        self.assertEqual(f3, [p3, p4])
-        self.assertEqual(f4, [p4])
+        resp = self.client.post("/login", data={
+            "email": "u@x.com",
+            "password": "wrong",
+        }, follow_redirects=False)
 
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/login", resp.headers["Location"])
+
+    def test_login_banned_user(self):
+        u = User(name="U", email="u@student.uwa.edu.au", role="student")
+        u.set_password("secret123")
+        banned = BannedUser(email="u@student.uwa.edu.au", name="U", reason="test")
+        db.session.add_all([u, banned])
+        db.session.commit()
+
+        resp = self.client.post("/login", data={
+            "email": "u@x.com",
+            "password": "secret123",
+        }, follow_redirects=False)
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/login", resp.headers["Location"])
+
+    def test_signup_short_password(self):
+        resp = self.client.post("/signup", data={
+            "name": "testJeff",
+            "email": "testJeff@student.uwa.edu.au",
+            "password": "short",
+            "confirm_password": "short",
+        }, follow_redirects=False)
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/signup", resp.headers["Location"])
+
+
+class NotePreviewCase(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.user = User(email="u@student.uwa.edu.au", name="U")
+        db.session.add(self.user)
+        db.session.commit()
+
+    def test_has_preview_pdf_filename(self):
+        note = fileModel(
+            course_code="CITS3403",
+            author_id=self.user.id,
+            title="PDF",
+            filename="note.pdf",
+            file=b"data",
+        )
+        self.assertTrue(note.has_preview)
+
+    def test_has_preview_txt_filename(self):
+        note = fileModel(
+            course_code="CITS3403",
+            author_id=self.user.id,
+            title="TXT",
+            filename="note.txt",
+            file=b"data",
+        )
+        self.assertTrue(note.has_preview)
+
+    def test_has_preview_with_pdf_cache(self):
+        note = fileModel(
+            course_code="CITS3403",
+            author_id=self.user.id,
+            title="DOCX",
+            filename="note.docx",
+            file=b"data",
+            pdf_cache=b"%PDF-1.4 ...",
+        )
+        self.assertTrue(note.has_preview)
+
+    def test_no_preview_without_pdf_cache(self):
+        note = fileModel(
+            course_code="CITS3403",
+            author_id=self.user.id,
+            title="DOCX",
+            filename="note.docx",
+            file=b"data",
+            pdf_cache=None,
+        )
+        self.assertFalse(note.has_preview)
+
+class DiscussionModelCase(BaseTestCase):
+    def test_display_name_anonymous(self):
+        d = Discussion(course_code="CITS3403", text="hi", user_id=None)
+        self.assertEqual(d.display_name, "Anonymous")
+
+    def test_display_name_with_user(self):
+        u = User(email="u@student.uwa.edu.au", name="User")
+        db.session.add(u)
+        db.session.commit()
+
+        d = Discussion(course_code="CITS3403", text="hi", user=u)
+        db.session.add(d)
+        db.session.flush()
+        self.assertEqual(d.display_name, "User")
+
+    def test_parent_child_relationship(self):
+        u = User(email="u@student.uwa.edu.au", name="User")
+        db.session.add(u)
+        db.session.commit()
+
+        parent = Discussion(course_code="CITS3403", text="parent", user_id=u.id)
+        db.session.add(parent)
+        db.session.commit()
+
+        child = Discussion(course_code="CITS3403", text="reply", user_id=u.id, parent_id=parent.id)
+        db.session.add(child)
+        db.session.commit()
+
+        self.assertEqual(child.parent.id, parent.id)
+        self.assertEqual(parent.replies[0].id, child.id)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
