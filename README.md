@@ -100,11 +100,6 @@ The project includes backend unit tests for:
 - Notifications
 - Database constraints
 
-#### Run all unit tests:
-```bash
-python3 tests.py
-```
-
 ### Selenium Web tests
 The project also includes Selenium browser-based system tests for:
 - Landing page loading
@@ -115,12 +110,6 @@ The project also includes Selenium browser-based system tests for:
 - Course page navigation
 - Review submission
 - Upload notes modal functionality
-
-#### Required Downloads:
-Install Selenium 
-```bash
-pip3 install selenium
-```
 
 Install Chrome and ChromeDriver
 ###### macOS/Linux
