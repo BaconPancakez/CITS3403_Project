@@ -1,12 +1,9 @@
 # To run just use python (or python3) tests.py
 import os
-import sys
 import unittest
 
 os.environ["MYAPP_DATABASE_URL"] = "sqlite://"
 os.environ["MYAPP_SECRET_KEY"] = "test-secret"
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy.exc import IntegrityError
 from app.models import User, Review, Discussion, BannedUser, fileModel, NoteVote, NoteReport, CourseQuiz, QuizReport, QuizUpvote, Notification

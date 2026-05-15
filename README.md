@@ -139,6 +139,13 @@ Example:
     C:\chromedriver\
 to Environment Variables → PATH.
 
+
+
+##### Run Unit tests:
+```bash
+python3 -m unittest tests/unit_tests.py
+```
+
 ##### Run Selenium tests:
 ```bash
 python3 -m unittest tests/selenium_tests.py
