@@ -14,7 +14,10 @@ class BaseTestCase(unittest.TestCase):
     def setUp(self):
         self.app_context = app.app_context()
         self.app_context.push()
-        app.config.update(TESTING=True)
+        app.config.update(
+            TESTING=True,
+            WTF_CSRF_ENABLED=False,
+        )
         db.create_all()
 
     def tearDown(self):
