@@ -9,6 +9,7 @@
     const badge2 = document.getElementById("stepBadge2");
     const form = document.getElementById("uploadNotesForm");
     const modal = document.getElementById("uploadNotesModal");
+    const titleInput = document.getElementById("notesTitle"); // 👈 added
 
     if (!fileInput) return;
 
@@ -25,10 +26,7 @@
                 txtArea.value = e.target.result;
                 updateCharCount();
                 showTxtEditor();
-                // Scroll editor into view smoothly
-                txtSection.scrollIntoView({
-                    behavior: "smooth", block: "nearest"
-                });
+                txtSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
             };
             reader.onerror = function () {
                 txtArea.value = "";
@@ -62,8 +60,36 @@
         charCount.textContent = n.toLocaleString() + " chars";
     }
 
-    // ── On submit: copy edited text to hidden fields if in TXT mode ───────────
-    form.addEventListener("submit", function () {
+    // ── Clear title error as soon as user starts typing ───────────────────────
+    titleInput.addEventListener("input", function () {
+        titleInput.classList.remove("is-invalid");
+        const err = document.getElementById("notesTitleError");
+        if (err) err.remove();
+    });
+
+    // ── On submit ─────────────────────────────────────────────────────────────
+    form.addEventListener("submit", function (e) {
+
+        // Validate title
+        if (!titleInput.value.trim()) {
+            e.preventDefault();
+
+            titleInput.classList.add("is-invalid");
+
+            // Only add error message if it doesn't already exist
+            if (!document.getElementById("notesTitleError")) {
+                const err = document.createElement("div");
+                err.id = "notesTitleError";
+                err.className = "invalid-feedback";
+                err.textContent = "Please enter a title before uploading.";
+                titleInput.after(err);
+            }
+
+            titleInput.focus();
+            return;
+        }
+
+        // Copy edited text to hidden fields if in TXT mode
         const file = fileInput.files[0];
         if (file && file.name.toLowerCase().endsWith(".txt")
             && txtSection.style.display !== "none") {
@@ -78,6 +104,9 @@
             form.reset();
             hideTxtEditor();
             charCount.textContent = "";
+            titleInput.classList.remove("is-invalid");        // 👈 clear on close
+            const err = document.getElementById("notesTitleError");
+            if (err) err.remove();
         });
     }
 }());
