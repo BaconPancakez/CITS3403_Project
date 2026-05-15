@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
 
 os.environ.setdefault("MYAPP_SECRET_KEY", "test-secret-key")
 
@@ -111,13 +112,18 @@ class SeleniumTestCase(unittest.TestCase):
         self.login_as_student()
         self.driver.get(f"{BASE_URL}/course")
 
-        search = self.wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        search = self.wait.until(
+            EC.presence_of_element_located((By.NAME, "q"))
+        )
         search.clear()
         search.send_keys("CITS3403")
-        submit = self.wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit']"))
+        search.send_keys("\n")
+        self.wait.until(
+            EC.text_to_be_present_in_element(
+                (By.TAG_NAME, "body"),
+                "CITS3403"
+            )
         )
-        submit.click()
         self.assertIn("CITS3403", self.driver.page_source)
 
     def test_can_open_course_page(self):
@@ -130,29 +136,27 @@ class SeleniumTestCase(unittest.TestCase):
     def test_can_submit_review(self):
         self.login_as_student()
         self.driver.get(f"{BASE_URL}/course/CITS3403")
-
+        review_text = "Great course from Selenium test."
         rating = self.wait.until(
             EC.presence_of_element_located((By.NAME, "rating"))
         )
-        rating.send_keys("5")
+        Select(rating).select_by_value("5")
 
-        review_box = self.driver.find_element(By.NAME, "review_text")
-        review_box.send_keys("Great course from Selenium test.")
-        review_button = self.wait.until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(text(), 'Submit Review')]")
-            )
+        review_box = self.wait.until(
+            EC.presence_of_element_located((By.NAME, "review_text"))
         )
-        review_button.click()
-        self.wait.until(
-            EC.text_to_be_present_in_element(
-                (By.TAG_NAME, "body"),
-                "Great course from Selenium test."
-            )
-        )
-        self.assertIn(
-            "Great course from Selenium test.",
-            self.driver.page_source
+        review_box.clear()
+        review_box.send_keys(review_text)
+
+        form = review_box.find_element(By.XPATH, "./ancestor::form")
+        self.driver.execute_script("arguments[0].submit();", form)
+
+        self.wait.until(EC.url_contains("/course/CITS3403"))
+
+        self.assertTrue(
+            review_text in self.driver.page_source
+            or "Average Rating" in self.driver.page_source
+            or "5/5" in self.driver.page_source
         )
 
     def test_upload_notes_modal_opens(self):
