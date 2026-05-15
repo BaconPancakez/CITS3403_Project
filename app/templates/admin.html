@@ -125,15 +125,6 @@
                 {% endif %}
             </button>
         </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-panel" type="button"
-                role="tab" aria-controls="system-panel" aria-selected="false">
-                ⚙️ System
-                {% if not system_checks.values() | selectattr('ok') | list | length == system_checks | length %}
-                <span class="badge bg-danger ms-1">!</span>
-                {% endif %}
-            </button>
-        </li>
     </ul>
 
     <div class="tab-content" id="adminTabsContent">
@@ -839,79 +830,6 @@
 
         </div>{# /reports-panel #}
 
-        {# ══════════════════════════════════════════════════════════════════
-        Tab 4: System
-        ══════════════════════════════════════════════════════════════════ #}
-        <div class="tab-pane fade" id="system-panel" role="tabpanel" aria-labelledby="system-tab">
-
-            <h4 class="mb-1">System Requirements</h4>
-            <p class="text-muted small mb-4">
-                Live status of every runtime dependency. A missing dependency
-                degrades note preview quality but does not break the app.
-            </p>
-
-            <div class="row g-3 mb-4">
-                {% for key, dep in system_checks.items() %}
-                <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card h-100
-                                border-{% if dep.ok %}success{% else %}danger{% endif %}">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <span class="fs-4">
-                                    {% if dep.ok %}✅{% else %}❌{% endif %}
-                                </span>
-                                <h6 class="mb-0 fw-bold">{{ dep.label }}</h6>
-                            </div>
-                            <p class="small text-muted mb-2">{{ dep.purpose }}</p>
-                            {% if dep.ok %}
-                            <span class="badge bg-success">
-                                Installed{% if dep.version %} — {{ dep.version }}{% endif %}
-                            </span>
-                            {% else %}
-                            <p class="small mb-1 fw-semibold text-danger">Not installed</p>
-                            <p class="small text-muted mb-0">Install with:</p>
-                            <code class="small">{{ dep.install }}</code>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <hr>
-            <h5 class="mt-4 mb-2">Note Preview Cache</h5>
-            <p class="text-muted small mb-3">
-                DOCX and ODT files are converted to PDF at upload time for
-                instant preview. Files uploaded before LibreOffice was installed
-                have no cached PDF.
-            </p>
-
-            {% if unconverted_count > 0 %}
-            <div class="alert alert-warning d-flex
-                        justify-content-between align-items-center">
-                <div>
-                    <strong>{{ unconverted_count }} file(s)</strong>
-                    are missing a PDF preview cache.
-                    {% if system_checks.libreoffice.ok %}
-                    Click Reconvert to generate them now.
-                    {% else %}
-                    Install LibreOffice first, then reconvert.
-                    {% endif %}
-                </div>
-                <form method="POST" action="{{ url_for('reconvert_notes') }}">
-                    <button type="submit" class="btn btn-warning btn-sm" {% if not system_checks.libreoffice.ok
-                        %}disabled{% endif %}>
-                        🔄 Reconvert All
-                    </button>
-                </form>
-            </div>
-            {% else %}
-            <div class="alert alert-success mb-0">
-                ✅ All DOCX and ODT files have a PDF preview cached.
-            </div>
-            {% endif %}
-
-        </div>{# /system-panel #}
 
     </div>{# /tab-content #}
 
