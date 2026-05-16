@@ -40,6 +40,10 @@
     const toggleBtn = document.getElementById("reviewToggleBtn");
     const sortBtns = document.querySelectorAll(".review-sort-btn");
     const barRows = document.querySelectorAll(".review-bar-row");
+    const reviewForm = document.querySelector('form:has(textarea[name="review_text"])');
+    const reviewTextarea = reviewForm ? reviewForm.querySelector('textarea[name="review_text"]') : null;
+    const reviewDraftPreview = document.getElementById("reviewDraftPreview");
+    const reviewDraftText = document.getElementById("reviewDraftText");
 
     if (!list) return;
 
@@ -138,5 +142,16 @@
 
     // ── Initial render ────────────────────────────────────────────────────
     render();
+
+    if (reviewTextarea && reviewDraftPreview && reviewDraftText) {
+        const syncReviewDraft = function () {
+            const text = reviewTextarea.value.trim();
+            reviewDraftText.textContent = text;
+            reviewDraftPreview.classList.toggle("d-none", text.length === 0);
+        };
+
+        reviewTextarea.addEventListener("input", syncReviewDraft);
+        syncReviewDraft();
+    }
 
 }());

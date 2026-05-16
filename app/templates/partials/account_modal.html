@@ -1,4 +1,6 @@
-<div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalLabel" aria-hidden="true">
+<div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalLabel" aria-hidden="true"
+    data-account-stats-url="{{ url_for('account_stats') }}"
+    data-account-update-url="{{ url_for('account_update') }}">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
         <div class="modal-content">
 
