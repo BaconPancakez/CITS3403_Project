@@ -365,6 +365,9 @@
                             <textarea name="review_text" class="form-control form-control-sm" rows="2" placeholder="Write your review…"
                                 required></textarea>
                         </div>
+                        <p id="reviewDraftPreview" class="small text-muted mb-2 d-none" aria-live="polite">
+                            Draft preview: <span id="reviewDraftText"></span>
+                        </p>
                         <button class="btn btn-primary btn-sm w-100">Submit Review</button>
                     </form>
                     {% endif %}

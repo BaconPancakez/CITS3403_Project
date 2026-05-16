@@ -103,7 +103,9 @@ class SeleniumTestCase(unittest.TestCase):
         self.driver.find_element(By.NAME, "password").send_keys("wrong")
         self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
 
-        self.assertIn("Invalid", self.driver.page_source)
+        self.wait.until(lambda d: "Invalid email or password." in d.page_source)
+
+        self.assertIn("Invalid email or password.", self.driver.page_source)
 
     def test_student_login_redirects_home(self):
         self.login_as_student()

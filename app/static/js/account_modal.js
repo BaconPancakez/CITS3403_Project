@@ -3,6 +3,9 @@
     const modal = document.getElementById("accountModal");
     if (!modal) return;
 
+    const statsUrl = modal.dataset.accountStatsUrl;
+    const updateUrl = modal.dataset.accountUpdateUrl;
+
     // ── Element refs ──────────────────────────────────────────────────────
     const avatar = document.getElementById("accountAvatar");
     const displayName = document.getElementById("accountDisplayName");
@@ -33,7 +36,7 @@
 
     // ── Load stats via fetch ──────────────────────────────────────────────
     function loadStats() {
-        fetch("{{ url_for('account_stats') }}")
+        fetch(statsUrl)
             .then(r => r.json())
             .then(data => {
                 // Avatar initials
@@ -101,7 +104,7 @@
             const body = new FormData();
             body.append("name", nameInput.value);
 
-            fetch("{{ url_for('account_update') }}", {
+            fetch(updateUrl, {
                 method: "POST",
                 body: body,
             })
